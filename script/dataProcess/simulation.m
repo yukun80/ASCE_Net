@@ -48,6 +48,6 @@ K=ifft2(K);
 K=ifftshift(K);
 K_complex=K;      %%%%%%%% K_complex保存的是图象复数据 %%%%%%%%%
 K=abs(K);
-imshow(K);
+% imshow(K);
 xlabel('距离向');
 ylabel('方位向');

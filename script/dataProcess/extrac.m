@@ -71,7 +71,7 @@ for sca_i=1:R1
 
 
     [type,temp_coordinate]=selection(image_temp);     %%%%%%%%%%       type是该ROI区域的类型：若为0则是分布散射中心；若不为0则是局部散射中心
-    figure(2),imshow(image_temp);                     %%%%%%%%%%       temp_coordinate是该区域散射中心的位置，其单位是/像素
+    % figure(2),imshow(image_temp);                     %%%%%%%%%%       temp_coordinate是该区域散射中心的位置，其单位是/像素
     
     
 

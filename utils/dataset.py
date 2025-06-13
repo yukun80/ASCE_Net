@@ -8,45 +8,43 @@ from utils import config
 
 
 def read_sar_complex_tensor(file_path, height, width):
-    """从.raw文件中读取SAR复数数据，清洗无效值，并返回一个复数张量"""
+    """从.raw文件中读取SAR复数数据，进行鲁棒的标准化，并返回一个复数张量"""
     try:
         data = np.fromfile(file_path, dtype=np.float32)
         if data.size != height * width * 2:
-            print(f"Warning: Unexpected data size in {file_path}. Skipping.")
+            # print(f"Warning: Unexpected data size in {file_path}. Skipping.")
             return None
 
-        # --- 健壮性优化 (第1步): 清洗原始数据 ---
-        if not np.all(np.isfinite(data)):
-            # print(f"Warning: Non-finite values found in {file_path}. Cleaning data.")
-            data = np.nan_to_num(data, nan=0.0, posinf=0.0, neginf=0.0)
+        data = np.nan_to_num(data, nan=0.0, posinf=0.0, neginf=0.0)
 
         magnitude = data[: height * width].reshape(height, width)
         phase = data[height * width :].reshape(height, width)
 
-        real_part = magnitude * np.cos(phase)
-        imag_part = magnitude * np.sin(phase)
+        real_part = np.nan_to_num(magnitude * np.cos(phase))
+        imag_part = np.nan_to_num(magnitude * np.sin(phase))
 
-        # --- 健壮性优化 (第2步): 清洗计算后的实部和虚部 ---
-        # 这一步可以捕获由 inf * 0 等操作产生的NaN
-        real_part = np.nan_to_num(real_part, nan=0.0, posinf=0.0, neginf=0.0)
-        imag_part = np.nan_to_num(imag_part, nan=0.0, posinf=0.0, neginf=0.0)
+        # --- 鲁棒标准化：百分位截断 + 范围缩放 ---
+        def robust_scaling(matrix):
+            # 1. 百分位截断，去除极端异常值
+            p1, p99 = np.percentile(matrix, [1, 99])
+            clipped_matrix = np.clip(matrix, p1, p99)
 
-        # --- 健壮性优化 (第3步): 安全地进行Z-score标准化 ---
-        real_mean, real_std = np.mean(real_part), np.std(real_part)
-        imag_mean, imag_std = np.mean(imag_part), np.std(imag_part)
+            # 2. 范围缩放（Min-Max Scaling）到 [-1, 1]
+            min_val = clipped_matrix.min()
+            max_val = clipped_matrix.max()
+            if max_val - min_val > 1e-8:
+                scaled_matrix = -1.0 + 2.0 * (clipped_matrix - min_val) / (max_val - min_val)
+            else:
+                # 如果矩阵值都一样，则返回全零矩阵
+                scaled_matrix = np.zeros_like(matrix)
+            return scaled_matrix
 
-        # 如果标准差接近于0，说明这个图像块是常数，标准化后应该为0
-        if real_std > 1e-8:
-            real_part = (real_part - real_mean) / real_std
-        else:
-            real_part = np.zeros_like(real_part)
+        real_part_scaled = robust_scaling(real_part)
+        imag_part_scaled = robust_scaling(imag_part)
 
-        if imag_std > 1e-8:
-            imag_part = (imag_part - imag_mean) / imag_std
-        else:
-            imag_part = np.zeros_like(imag_part)
-
-        complex_tensor = torch.complex(torch.from_numpy(real_part).float(), torch.from_numpy(imag_part).float())
+        complex_tensor = torch.complex(
+            torch.from_numpy(real_part_scaled).float(), torch.from_numpy(imag_part_scaled).float()
+        )
         return complex_tensor.unsqueeze(0)
 
     except Exception as e:

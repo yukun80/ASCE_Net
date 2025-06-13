@@ -38,10 +38,13 @@ def main():
     print(f"Using device: {config.DEVICE}")
     model = ASCNetComplex_v2(n_channels=1, n_params=2).to(config.DEVICE)
     criterion = FocusedASCLoss()
-    optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
+    # <<< CHANGED: Added weight_decay from config >>>
+    optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE, weight_decay=config.WEIGHT_DECAY)
 
     # --- 核心修改：移除 verbose=True 参数 ---
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", patience=3, factor=0.1)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, "min", patience=5, factor=0.1
+    )  # Increased patience slightly
 
     os.makedirs(config.CHECKPOINT_DIR, exist_ok=True)
     best_val_loss = float("inf")

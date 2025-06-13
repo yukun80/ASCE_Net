@@ -103,16 +103,20 @@ class MSTAR_ASC_Dataset(Dataset):
     def __getitem__(self, idx):
         sample = self.samples[idx]
 
-        # 加载SAR复数图像
         sar_complex_tensor = read_sar_complex_tensor(sample["sar_path"], config.IMG_HEIGHT, config.IMG_WIDTH)
 
-        # 如果图像读取失败，返回None（需要在DataLoader中处理）
         if sar_complex_tensor is None:
             return self.__getitem__((idx + 1) % len(self))
 
-        # 加载参数图像标签
         label_A = np.load(sample["label_A_path"])
         label_alpha = np.load(sample["label_alpha_path"])
+
+        # <<< ADDED: Label Normalization for Amplitude >>>
+        # Apply log1p transform only to non-zero values to compress the range
+        # This is a robust way to handle the wide dynamic range of amplitude.
+        label_A[label_A > 0] = np.log1p(label_A[label_A > 0])
+        # Alpha is already in a nice [-1, 1] range, so we leave it as is.
+        # We will handle its range constraint on the model output side.
 
         label_tensor = torch.from_numpy(np.stack([label_A, label_alpha], axis=0)).float()
 

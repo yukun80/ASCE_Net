@@ -15,10 +15,11 @@ LABEL_SAVE_ROOT = r"datasets\SAR_ASC_Project\tmp_MSTAR_ASC_LABELS"
 # --- 模型和训练参数 ---
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 4
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-5  # <<< CHANGED: Lowered the learning rate
+WEIGHT_DECAY = 1e-5  # <<< ADDED: L2 Regularization
 NUM_EPOCHS = 50
 CHECKPOINT_DIR = "checkpoints"
-MODEL_NAME = "asc_net.pth"
+MODEL_NAME = "best_model.pth"
 
 # --- 图像和模型物理参数 ---
 # MSTAR图像尺寸

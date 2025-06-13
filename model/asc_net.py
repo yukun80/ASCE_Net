@@ -80,5 +80,19 @@ class ASCNetComplex_v2(nn.Module):
         x = self.final_conv(x)
 
         x_mag = x.abs()
-        params_out = self.outc(x_mag)
+
+        # --- CHANGED: Apply selective activation to output ---
+        raw_params = self.outc(x_mag)
+
+        # For Amplitude (A), we can use ReLU to ensure non-negativity.
+        # Since we log-transformed the label, the network output will be log(1+A).
+        # We can revert this during prediction/inference.
+        pred_A = torch.relu(raw_params[:, 0:1, :, :])
+
+        # For Alpha (α), use tanh to constrain the output to [-1, 1].
+        pred_alpha = torch.tanh(raw_params[:, 1:2, :, :])
+
+        # Concatenate the processed channels back together.
+        params_out = torch.cat([pred_A, pred_alpha], dim=1)
+
         return params_out

@@ -1,87 +1,115 @@
-# predict.py
-
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-import os
+from torch.utils.data import DataLoader, random_split
+
+from model.asc_net import ASCNetComplex_v2
+from utils.dataset import MSTAR_ASC_Dataset
 from utils import config
-from model.asc_net import ASCNetComplex
-from utils.dataset import read_sar_complex_tensor
+import os
 
 
-def predict_single_image(model_path, sar_image_path):
-    # 加载模型
-    model = ASCNetComplex(n_channels=1, n_params=2)
-    model.load_state_dict(torch.load(model_path, map_location=config.DEVICE))
-    model.to(config.DEVICE)
-    model.eval()
+def predict_and_visualize():
+    """
+    加载训练好的模型，对验证集中的一个样本进行推理，并可视化结果。
+    """
+    print("--- Starting Inference ---")
 
-    # 加载和预处理SAR图像 (使用与训练时相同的函数)
-    sar_tensor = read_sar_complex_tensor(sar_image_path, config.IMG_HEIGHT, config.IMG_WIDTH)
-    if sar_tensor is None:
-        print(f"Failed to read image {sar_image_path}")
+    # 1. 设置设备
+    device = torch.device(config.DEVICE)
+    print(f"Using device: {device}")
+
+    # 2. 加载模型
+    model_path = os.path.join(config.CHECKPOINT_DIR, config.MODEL_NAME)
+    if not os.path.exists(model_path):
+        print(f"Error: Model not found at {model_path}")
         return
 
-    sar_tensor = sar_tensor.to(config.DEVICE)  # .unsqueeze(0) is already done in read_sar_complex_tensor
+    model = ASCNetComplex_v2(n_channels=1, n_params=2).to(device)
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.eval()  # 设置为评估模式
+    print(f"Model loaded from {model_path}")
 
-    # 预测
+    # 3. 加载数据集并获取一个验证样本
+    # 确保使用与train.py中相同的随机种子，以获得相同的验证集
+    dataset = MSTAR_ASC_Dataset(root_dir=config.MSTAR_DATA_DIR_AS_MAT)
+    train_size = int(0.8 * len(dataset))
+    val_size = len(dataset) - train_size
+    _, val_dataset = random_split(dataset, [train_size, val_size], generator=torch.Generator().manual_seed(42))
+
+    val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
+
+    # 获取一个批次（即一个样本）
+    try:
+        sar_img_complex, true_params = next(iter(val_loader))
+    except StopIteration:
+        print("Validation set is empty.")
+        return
+
+    # 4. 执行推理
     with torch.no_grad():
-        predicted_params = model(sar_tensor)
+        predicted_params = model(sar_img_complex.to(device))
 
-    # 将结果转换回numpy数组
-    predicted_params_np = predicted_params.squeeze(0).cpu().numpy()
-    pred_A = predicted_params_np[0, :, :]
-    pred_alpha = predicted_params_np[1, :, :]
+    # 5. 将Tensor转为Numpy数组，并移至CPU
+    sar_img_complex = sar_img_complex.squeeze(0).cpu().numpy()
+    true_params = true_params.squeeze(0).cpu().numpy()
+    predicted_params = predicted_params.squeeze(0).cpu().detach().numpy()
 
-    # 用于可视化的原始图像幅度
-    # 从复数张量中获取幅度
-    sar_magnitude = sar_tensor.abs().squeeze().cpu().numpy()
+    # 提取SAR幅度图用于显示
+    sar_img_mag = np.abs(sar_img_complex[0] + 1j * sar_img_complex[1])
 
-    # 可视化结果
-    fig, axes = plt.subplots(1, 4, figsize=(20, 5))
-    axes[0].imshow(sar_magnitude, cmap="gray")
-    axes[0].set_title("Original SAR Magnitude")
-    axes[0].axis("off")
+    # 6. 逆变换并分离参数
+    # 对真实标签进行逆变换以便比较
+    true_A_vis = np.expm1(true_params[0, :, :])
+    true_alpha = true_params[1, :, :]
 
-    im1 = axes[1].imshow(pred_A, cmap="hot")
-    axes[1].set_title("Predicted Amplitude (A)")
-    axes[1].axis("off")
-    fig.colorbar(im1, ax=axes[1])
+    # 对预测结果进行逆变换
+    pred_A_vis = np.expm1(predicted_params[0, :, :])
+    pred_alpha = predicted_params[1, :, :]
 
-    im2 = axes[2].imshow(pred_alpha, cmap="hot")
-    axes[2].set_title(r"Predicted Freq. Dependence ($\alpha$)")
-    axes[2].axis("off")
-    fig.colorbar(im2, ax=axes[2])
+    print("Inference complete. Generating visualization...")
 
-    # 简单后处理：找到预测的散射中心
-    from scipy.signal import find_peaks
+    # 7. 可视化
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    fig.suptitle("Model Inference vs. Ground Truth", fontsize=20)
 
-    peaks, _ = find_peaks(pred_A.flatten(), height=0.1)  # height是阈值，需要调整
-    peak_rows, peak_cols = np.unravel_index(peaks, pred_A.shape)
+    # 第一行：幅度 A
+    ax = axes[0, 0]
+    im = ax.imshow(sar_img_mag, cmap="gray")
+    ax.set_title("Input SAR Image (Magnitude)")
+    fig.colorbar(im, ax=ax)
 
-    axes[3].imshow(sar_magnitude, cmap="gray")
-    axes[3].scatter(peak_cols, peak_rows, c="red", s=10, marker="x")
-    axes[3].set_title("Overlayed Scatterer Peaks")
-    axes[3].axis("off")
+    ax = axes[0, 1]
+    im = ax.imshow(true_A_vis, cmap="jet")
+    ax.set_title("Ground Truth: Amplitude (A)")
+    fig.colorbar(im, ax=ax)
 
-    plt.tight_layout()
+    ax = axes[0, 2]
+    im = ax.imshow(pred_A_vis, cmap="jet")
+    ax.set_title("Prediction: Amplitude (A)")
+    fig.colorbar(im, ax=ax)
+
+    # 第二行：Alpha
+    axes[1, 0].axis("off")  # 隐藏左下角的空图
+
+    ax = axes[1, 1]
+    im = ax.imshow(true_alpha, cmap="coolwarm", vmin=-1, vmax=1)
+    ax.set_title("Ground Truth: Alpha (α)")
+    fig.colorbar(im, ax=ax)
+
+    ax = axes[1, 2]
+    im = ax.imshow(pred_alpha, cmap="coolwarm", vmin=-1, vmax=1)
+    ax.set_title("Prediction: Alpha (α)")
+    fig.colorbar(im, ax=ax)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+
+    # 保存图像
+    output_filename = "inference_result.png"
+    plt.savefig(output_filename)
+    print(f"Visualization saved to {output_filename}")
     plt.show()
 
 
 if __name__ == "__main__":
-    # 使用示例
-    # 请确保你有一个训练好的模型，并提供一张 .raw 图像的路径
-    model_file = os.path.join(config.CHECKPOINT_DIR, config.MODEL_NAME)
-
-    # 找一张图像作为例子
-    # 你需要根据你的文件结构修改这个路径
-    example_image_path = (
-        "datasets/SAR_ASC_Project/02_Data_Processed_raw/test_15_deg/BMP2/SN_9563/HB03333.000.128x128.raw"
-    )
-
-    if os.path.exists(model_file) and os.path.exists(example_image_path):
-        predict_single_image(model_path=model_file, sar_image_path=example_image_path)
-    else:
-        print("Model file or example image not found.")
-        print(f"Looking for model at: {model_file}")
-        print(f"Looking for image at: {example_image_path}")
+    predict_and_visualize()

@@ -3,6 +3,11 @@
 import sys
 import os
 
+"""
+python step4_label_preprocess.py
+这个脚本用于将ASC的.mat文件转换为.npy文件，用于训练和测试
+"""
+
 # --- 开始添加的代码 ---
 # 获取当前脚本文件所在的目录 (ASCE_Net/script)
 current_dir = os.path.dirname(os.path.abspath(__file__))

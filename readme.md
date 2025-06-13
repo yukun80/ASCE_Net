@@ -50,6 +50,3 @@ ASCE_Net/
 │   └── tmp.py
 ├── .gitignore
 ```
-
-> 注：datasets目录下的子文件夹包含大量数据文件，未展开显示其下所有文件。
->

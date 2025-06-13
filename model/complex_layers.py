@@ -31,7 +31,7 @@ class ComplexBatchNorm2d(nn.Module):
 
 class ComplexReLU(nn.Module):
     def forward(self, x):
-        return F.relu(x.real, inplace=True) + 1j * F.relu(x.imag, inplace=True)
+        return F.relu(x.real) + 1j * F.relu(x.imag)
 
 
 class ComplexConvTranspose2d(nn.Module):

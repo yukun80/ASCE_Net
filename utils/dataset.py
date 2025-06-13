@@ -12,16 +12,12 @@ def read_sar_complex_tensor(file_path, height, width):
     try:
         data = np.fromfile(file_path, dtype=np.float32)
         if data.size != height * width * 2:
-            print(
-                f"Warning: Unexpected data size in {file_path}. Expected {height*width*2}, got {data.size}. Skipping."
-            )
+            print(f"Warning: Unexpected data size in {file_path}. Skipping.")
             return None
 
-        # --- 健壮性优化：清洗数据 ---
-        # 检查是否存在非有限数（NaN, inf, -inf）
+        # --- 健壮性优化 (第1步): 清洗原始数据 ---
         if not np.all(np.isfinite(data)):
-            print(f"Warning: Non-finite values found in {file_path}. Cleaning data.")
-            # 将NaN替换为0，将inf替换为大的有限数或0
+            # print(f"Warning: Non-finite values found in {file_path}. Cleaning data.")
             data = np.nan_to_num(data, nan=0.0, posinf=0.0, neginf=0.0)
 
         magnitude = data[: height * width].reshape(height, width)
@@ -30,10 +26,25 @@ def read_sar_complex_tensor(file_path, height, width):
         real_part = magnitude * np.cos(phase)
         imag_part = magnitude * np.sin(phase)
 
-        real_std = np.std(real_part)
-        imag_std = np.std(imag_part)
-        real_part = (real_part - np.mean(real_part)) / (real_std + 1e-8)
-        imag_part = (imag_part - np.mean(imag_part)) / (imag_std + 1e-8)
+        # --- 健壮性优化 (第2步): 清洗计算后的实部和虚部 ---
+        # 这一步可以捕获由 inf * 0 等操作产生的NaN
+        real_part = np.nan_to_num(real_part, nan=0.0, posinf=0.0, neginf=0.0)
+        imag_part = np.nan_to_num(imag_part, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # --- 健壮性优化 (第3步): 安全地进行Z-score标准化 ---
+        real_mean, real_std = np.mean(real_part), np.std(real_part)
+        imag_mean, imag_std = np.mean(imag_part), np.std(imag_part)
+
+        # 如果标准差接近于0，说明这个图像块是常数，标准化后应该为0
+        if real_std > 1e-8:
+            real_part = (real_part - real_mean) / real_std
+        else:
+            real_part = np.zeros_like(real_part)
+
+        if imag_std > 1e-8:
+            imag_part = (imag_part - imag_mean) / imag_std
+        else:
+            imag_part = np.zeros_like(imag_part)
 
         complex_tensor = torch.complex(torch.from_numpy(real_part).float(), torch.from_numpy(imag_part).float())
         return complex_tensor.unsqueeze(0)

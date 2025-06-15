@@ -1,34 +1,39 @@
-# utils/config.py
-
+import os
 import torch
-import numpy as np
 
-# --- 数据集路径 ---
-# 原始MSTAR数据处理后得到的ASC .mat文件根目录
-ASC_MAT_ROOT = r"datasets\SAR_ASC_Project\tmp_Training_ASC"
+# --- File and Directory Paths ---
+# Get the project root directory
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# 对应的SAR图像.raw文件根目录 (用于模型输入)
-SAR_RAW_ROOT = r"datasets\SAR_ASC_Project\tmp_Data_Processed_raw"
+# Directory for saving ASC .mat files
+ASC_MAT_ROOT = os.path.join(PROJECT_ROOT, "datasets", "SAR_ASC_Project", "tmp_Training_ASC")
 
-# 预处理后，用于训练的参数图像标签的保存路径
-LABEL_SAVE_ROOT = r"datasets\SAR_ASC_Project\tmp_MSTAR_ASC_LABELS"
+# Raw MSTAR data directory (containing .raw files)
+SAR_RAW_ROOT = os.path.join(PROJECT_ROOT, "datasets", "SAR_ASC_Project", "tmp_Data_Processed_raw")
 
-# --- 模型和训练参数 ---
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 4
-LEARNING_RATE = 1e-5  # <<< CHANGED: Lowered the learning rate
-WEIGHT_DECAY = 1e-5  # <<< ADDED: L2 Regularization
-NUM_EPOCHS = 50
-CHECKPOINT_DIR = "checkpoints"
+# Directory to save processed labels (as .npy files)
+LABEL_SAVE_ROOT = os.path.join(PROJECT_ROOT, "datasets", "SAR_ASC_Project", "tmp_MSTAR_ASC_LABELS")
+
+# Directory for saving model checkpoints
+CHECKPOINT_DIR = os.path.join(PROJECT_ROOT, "checkpoints")
+
+
+# --- Device Configuration ---
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+# --- Model & Training Parameters ---
 MODEL_NAME = "best_model.pth"
-
-# --- 图像和模型物理参数 ---
-# MSTAR图像尺寸
 IMG_HEIGHT = 128
 IMG_WIDTH = 128
-# K-space处理网格大小，用于坐标变换
-P_GRID_SIZE = 84
+# Add this line to define the pixel size in meters
+PIXEL_SPACING = 0.1  # Physical size of a pixel in meters (m/pixel)
 
-# --- 损失函数权重 ---
-# 论文中没有明确给出，我们假设权重为1。你可以根据训练情况调整
-LOSS_WEIGHT_NONZERO = 1.0
+# --- Loss Function Parameters ---
+# Weight for the foreground (scatterer) pixels in the loss function
+# This helps combat the class imbalance from sparse labels
+LOSS_WEIGHT_FOREGROUND = 10.0
+
+# --- Data Loader Parameters ---
+BATCH_SIZE = 16
+NUM_WORKERS = 4

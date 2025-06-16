@@ -44,7 +44,6 @@ def main():
     print(f"Reconstruction plots will be saved in: {output_dir}")
 
     print("Discovering dataset samples...")
-    # Use the dataset to find file pairs
     dataset = MSTAR_ASC_5CH_Dataset()
     if not dataset.samples:
         print("No valid samples found.")
@@ -55,7 +54,7 @@ def main():
         sar_path = os.path.normpath(sample_info["sar"])
         base_name = os.path.basename(sar_path).replace(".128x128.raw", "")
 
-        # a. Load original SAR image
+        # a. Load original SAR image (shape [1, H, W])
         sar_tensor = read_sar_complex_tensor(sar_path, config.IMG_HEIGHT, config.IMG_WIDTH)
         if sar_tensor is None:
             continue
@@ -67,7 +66,10 @@ def main():
 
         # c. Reconstruct from PREDICTION
         with torch.no_grad():
-            predicted_maps = model(sar_tensor.to(config.DEVICE)).squeeze(0).cpu().numpy()
+            # --- FIX: Add a batch dimension with unsqueeze(0) before passing to the model ---
+            # Input to model must be 4D: [N, C, H, W]
+            input_tensor = sar_tensor.unsqueeze(0).to(config.DEVICE)
+            predicted_maps = model(input_tensor).squeeze(0).cpu().numpy()
 
         pred_scatterers = extract_scatterers_from_prediction_5ch(predicted_maps)
         recon_pred_img = reconstruct_sar_image(pred_scatterers)
@@ -77,7 +79,6 @@ def main():
         fig.suptitle(f"Image Reconstruction Comparison: {base_name}", fontsize=16)
 
         original_img_mag = np.abs(sar_tensor[0].numpy())
-        # Use a common intensity range for all plots for fair comparison
         vmax = np.percentile(original_img_mag, 99.9)
 
         axes[0].imshow(original_img_mag, cmap="gray", vmin=0, vmax=vmax)

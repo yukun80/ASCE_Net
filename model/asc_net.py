@@ -84,21 +84,19 @@ class ASCNet_v3_5param(nn.Module):
         x = self.up3(x, x1)
         x = self.final_conv(x)
 
-        # Transition from complex feature space to real parameter space
         x_mag = x.abs()
         raw_params = self.outc(x_mag)
 
         # --- Apply appropriate activations to each parameter channel ---
-        # 1. Heatmap: Sigmoid to get a probability-like map in [0, 1]
         pred_heatmap = torch.sigmoid(raw_params[:, 0:1, :, :])
-        # 2. Amplitude (A): ReLU to ensure it's non-negative. We predict log(1+A).
-        pred_A_log1p = torch.relu(raw_params[:, 1:2, :, :])
-        # 3. Alpha (α): Tanh to constrain it to its physical range of [-1, 1]
+
+        # --- FIX: Use a bounded activation for Amplitude to prevent overflow ---
+        # A scaled sigmoid ensures the output is in a stable range (e.g., 0-10)
+        pred_A_log1p = 10.0 * torch.sigmoid(raw_params[:, 1:2, :, :])
+
         pred_alpha = torch.tanh(raw_params[:, 2:3, :, :])
-        # 4 & 5. Offsets (dx, dy): Tanh to constrain them to [-1, 1] pixel range.
         pred_dx = torch.tanh(raw_params[:, 3:4, :, :])
         pred_dy = torch.tanh(raw_params[:, 4:5, :, :])
 
-        # Concatenate the processed channels for the final output
         params_out = torch.cat([pred_heatmap, pred_A_log1p, pred_alpha, pred_dx, pred_dy], dim=1)
         return params_out

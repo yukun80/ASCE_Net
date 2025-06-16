@@ -11,7 +11,7 @@ def pixel_to_model(row, col):
     Converts integer pixel coordinates back to continuous physical model coordinates.
     """
     C1 = config.IMG_HEIGHT / (0.3 * config.P_GRID_SIZE)
-    C2 = config.IMG_WIDTH / 2 + 1
+    C2 = config.IMG_WIDTH / 2  # 64.0, This is correct for a 0-indexed system
 
     y_model = (C2 - row) / C1
     x_model = (col - C2) / C1

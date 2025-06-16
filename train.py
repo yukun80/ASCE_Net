@@ -21,7 +21,7 @@ def main():
     dataset = MSTAR_ASC_5CH_Dataset()
     if len(dataset) == 0:
         print(
-            f"Error: No samples found. Please run 'script/step4_label_preprocess_5channel.py' and check paths in 'utils/config.py'."
+            "Error: No samples found. Please run 'script/step4_label_preprocess_5channel.py' and check paths in 'utils/config.py'."
         )
         return
 

@@ -1,16 +1,10 @@
-# model/asc_net.py (v2 优化版)
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-# 确保 complex_layers.py 在同一目录下
 from .complex_layers import ComplexConv2d, ComplexBatchNorm2d, ComplexReLU, ComplexConvTranspose2d
 
-# ... ComplexDoubleConv, ComplexDown, ComplexUp 类代码保持不变 ...
-# ... 为保持代码完整性，这里全部列出 ...
 
-
+# --- Complex U-Net Building Blocks (No changes needed here) ---
 class ComplexDoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -51,25 +45,36 @@ class ComplexUp(nn.Module):
         return self.conv(x)
 
 
-# --- 模型优化：创建一个更轻量化的版本 ---
-class ASCNetComplex_v2(nn.Module):
-    def __init__(self, n_channels=1, n_params=2):
+# --- FINAL MODEL IMPLEMENTATION ---
+# This version replaces your ASCNetComplex_v2_Full
+class ASCNet_v3_5param(nn.Module):
+    """
+    Final model implementing the 5-parameter prediction strategy:
+    1. Heatmap (for localization)
+    2. Amplitude (A)
+    3. Alpha (α)
+    4. X-offset (dx)
+    5. Y-offset (dy)
+    """
+
+    def __init__(self, n_channels=1, n_params=5):  # n_params is now 5
         super().__init__()
-        # 相比原版，减少了通道数，让模型更轻量
-        self.inc = ComplexDoubleConv(n_channels, 32)
-        self.down1 = ComplexDown(32, 64)
-        self.down2 = ComplexDown(64, 128)
-        self.down3 = ComplexDown(128, 256)
-        self.up1 = ComplexUp(256, 128)
-        self.up2 = ComplexUp(128, 64)
-        self.up3 = ComplexUp(64, 32)
+        # A slightly deeper U-Net structure for better feature extraction
+        self.inc = ComplexDoubleConv(n_channels, 64)
+        self.down1 = ComplexDown(64, 128)
+        self.down2 = ComplexDown(128, 256)
+        self.down3 = ComplexDown(256, 512)
+        self.up1 = ComplexUp(512, 256)
+        self.up2 = ComplexUp(256, 128)
+        self.up3 = ComplexUp(128, 64)
+        self.final_conv = ComplexDoubleConv(64, 64)
 
-        # 输出层前的最后一层卷积
-        self.final_conv = ComplexDoubleConv(32, 32)
-
-        self.outc = nn.Conv2d(32, n_params, kernel_size=1)
+        # The output layer is a standard 2D convolution that maps the
+        # magnitude of the complex features to the 5 real-valued parameter maps.
+        self.outc = nn.Conv2d(64, n_params, kernel_size=1)
 
     def forward(self, x):
+        # U-Net Encoder-Decoder Path
         x1 = self.inc(x)
         x2 = self.down1(x1)
         x3 = self.down2(x2)
@@ -79,20 +84,21 @@ class ASCNetComplex_v2(nn.Module):
         x = self.up3(x, x1)
         x = self.final_conv(x)
 
+        # Transition from complex feature space to real parameter space
         x_mag = x.abs()
-
-        # --- CHANGED: Apply selective activation to output ---
         raw_params = self.outc(x_mag)
 
-        # For Amplitude (A), we can use ReLU to ensure non-negativity.
-        # Since we log-transformed the label, the network output will be log(1+A).
-        # We can revert this during prediction/inference.
-        pred_A = torch.relu(raw_params[:, 0:1, :, :])
+        # --- Apply appropriate activations to each parameter channel ---
+        # 1. Heatmap: Sigmoid to get a probability-like map in [0, 1]
+        pred_heatmap = torch.sigmoid(raw_params[:, 0:1, :, :])
+        # 2. Amplitude (A): ReLU to ensure it's non-negative. We predict log(1+A).
+        pred_A_log1p = torch.relu(raw_params[:, 1:2, :, :])
+        # 3. Alpha (α): Tanh to constrain it to its physical range of [-1, 1]
+        pred_alpha = torch.tanh(raw_params[:, 2:3, :, :])
+        # 4 & 5. Offsets (dx, dy): Tanh to constrain them to [-1, 1] pixel range.
+        pred_dx = torch.tanh(raw_params[:, 3:4, :, :])
+        pred_dy = torch.tanh(raw_params[:, 4:5, :, :])
 
-        # For Alpha (α), use tanh to constrain the output to [-1, 1].
-        pred_alpha = torch.tanh(raw_params[:, 1:2, :, :])
-
-        # Concatenate the processed channels back together.
-        params_out = torch.cat([pred_A, pred_alpha], dim=1)
-
+        # Concatenate the processed channels for the final output
+        params_out = torch.cat([pred_heatmap, pred_A_log1p, pred_alpha, pred_dx, pred_dy], dim=1)
         return params_out

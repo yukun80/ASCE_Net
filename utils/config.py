@@ -12,28 +12,29 @@ ASC_MAT_ROOT = os.path.join(PROJECT_ROOT, "datasets", "SAR_ASC_Project", "tmp_Tr
 SAR_RAW_ROOT = os.path.join(PROJECT_ROOT, "datasets", "SAR_ASC_Project", "tmp_Data_Processed_raw")
 
 # Directory to save processed labels (as .npy files)
-LABEL_SAVE_ROOT = os.path.join(PROJECT_ROOT, "datasets", "SAR_ASC_Project", "tmp_MSTAR_ASC_LABELS")
+LABEL_SAVE_ROOT_5CH = os.path.join(PROJECT_ROOT, "datasets", "SAR_ASC_Project", "tmp_MSTAR_ASC_LABELS")
 
 # Directory for saving model checkpoints
 CHECKPOINT_DIR = os.path.join(PROJECT_ROOT, "checkpoints")
 
 
-# --- Device Configuration ---
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# --- Model and Training Parameters ---
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+BATCH_SIZE = 8  # Reduced batch size for the larger model/labels
+LEARNING_RATE = 1e-4
+WEIGHT_DECAY = 1e-5
+NUM_EPOCHS = 100
+MODEL_NAME = "asc_net_v3_5param.pth"
 
 
-# --- Model & Training Parameters ---
-MODEL_NAME = "best_model.pth"
+# --- Image and Model Physical Parameters ---
 IMG_HEIGHT = 128
 IMG_WIDTH = 128
-# Add this line to define the pixel size in meters
-PIXEL_SPACING = 0.1  # Physical size of a pixel in meters (m/pixel)
+P_GRID_SIZE = 84
+PIXEL_SPACING = 0.1
 
-# --- Loss Function Parameters ---
-# Weight for the foreground (scatterer) pixels in the loss function
-# This helps combat the class imbalance from sparse labels
-LOSS_WEIGHT_FOREGROUND = 10.0
-
-# --- Data Loader Parameters ---
-BATCH_SIZE = 16
-NUM_WORKERS = 4
+# --- NEW: Weights for the Multi-Task Loss Function ---
+LOSS_WEIGHT_HEATMAP = 1.0
+LOSS_WEIGHT_AMP = 0.1
+LOSS_WEIGHT_ALPHA = 0.5
+LOSS_WEIGHT_OFFSET = 1.0

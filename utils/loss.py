@@ -1,48 +1,63 @@
-# utils/loss.py (优化版)
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from utils import config
 
 
-class FocusedASCLoss(nn.Module):
-    def __init__(self, background_sample_ratio=0.1):
-        super().__init__()
-        self.mse_loss = nn.MSELoss()
-        self.background_sample_ratio = background_sample_ratio
+class FocalLoss(nn.Module):
+    """Focal Loss for dense object detection."""
 
-    def forward(self, predicted_params, true_params):
-        pred_A, pred_alpha = predicted_params[:, 0], predicted_params[:, 1]
-        true_A, true_alpha = true_params[:, 0], true_params[:, 1]
+    def __init__(self, alpha=0.25, gamma=2.0):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
 
-        # 1. 找到前景（非零）和背景（零）像素的掩码
-        foreground_mask = true_A > 0
-        background_mask = ~foreground_mask
+    def forward(self, inputs, targets):
+        bce_loss = F.binary_cross_entropy(inputs, targets, reduction="none")
+        p_t = torch.exp(-bce_loss)
+        alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
+        focal_loss = alpha_t * (1 - p_t) ** self.gamma * bce_loss
+        return focal_loss.sum()  # Return sum to normalize by number of scatterers later
 
-        # 2. 计算前景loss (这是最重要的部分)
-        if foreground_mask.sum() > 0:
-            loss_fg_A = self.mse_loss(pred_A[foreground_mask], true_A[foreground_mask])
-            loss_fg_alpha = self.mse_loss(pred_alpha[foreground_mask], true_alpha[foreground_mask])
-            foreground_loss = (loss_fg_A + loss_fg_alpha) / 2
-        else:
-            foreground_loss = 0.0
 
-        # 3. 随机采样一部分背景像素来计算背景loss
-        num_background = background_mask.sum()
-        num_sample = int(num_background * self.background_sample_ratio)
+class ASCMultiTaskLoss(nn.Module):
+    """Multi-task loss for the 5-parameter ASC prediction."""
 
-        if num_sample > 0:
-            # 随机选择背景像素的索引
-            bg_indices = torch.where(background_mask)
-            rand_indices = torch.randperm(len(bg_indices[0]))[:num_sample]
+    def __init__(self):
+        super(ASCMultiTaskLoss, self).__init__()
+        self.focal_loss = FocalLoss()
+        self.l1_loss = nn.L1Loss(reduction="sum")
 
-            sampled_bg_indices = (bg_indices[0][rand_indices], bg_indices[1][rand_indices], bg_indices[2][rand_indices])
+        # Load weights from config for easy tuning
+        self.w_heatmap = config.LOSS_WEIGHT_HEATMAP
+        self.w_amp = config.LOSS_WEIGHT_AMP
+        self.w_alpha = config.LOSS_WEIGHT_ALPHA
+        self.w_offset = config.LOSS_WEIGHT_OFFSET
 
-            loss_bg_A = self.mse_loss(pred_A[sampled_bg_indices], true_A[sampled_bg_indices])
-            loss_bg_alpha = self.mse_loss(pred_alpha[sampled_bg_indices], true_alpha[sampled_bg_indices])
-            background_loss = (loss_bg_A + loss_bg_alpha) / 2
-        else:
-            background_loss = 0.0
+    def forward(self, prediction, target):
+        # Unpack predictions and targets
+        pred_heatmap, pred_A, pred_alpha, pred_dx, pred_dy = torch.split(prediction, 1, dim=1)
+        gt_heatmap, gt_A, gt_alpha, gt_dx, gt_dy = torch.split(target, 1, dim=1)
 
-        # 总loss是前景和背景loss的加权和，可以给予前景更高的权重
-        total_loss = foreground_loss * 10.0 + background_loss
+        # --- Create mask to apply regression loss only at scatterer locations ---
+        # The ground truth heatmap is 1 at peaks and decays, so we use a threshold.
+        # Amplitude channel (gt_A) is a more reliable mask source.
+        mask = gt_A > 0
+        num_scatterers = mask.sum().float().clamp(min=1)
 
-        return total_loss
+        # --- 1. Heatmap Loss (Focal Loss) ---
+        loss_h = self.focal_loss(pred_heatmap, gt_heatmap) / num_scatterers
+
+        # --- 2. Regression Losses (Masked L1) ---
+        loss_amp = self.l1_loss(pred_A[mask], gt_A[mask]) / num_scatterers
+        loss_alpha = self.l1_loss(pred_alpha[mask], gt_alpha[mask]) / num_scatterers
+        loss_off = (
+            self.l1_loss(pred_dx[mask], gt_dx[mask]) + self.l1_loss(pred_dy[mask], gt_dy[mask])
+        ) / num_scatterers
+
+        # --- 3. Total Weighted Loss ---
+        total_loss = (
+            self.w_heatmap * loss_h + self.w_amp * loss_amp + self.w_alpha * loss_alpha + self.w_offset * loss_off
+        )
+
+        return total_loss, loss_h, loss_amp, loss_alpha, loss_off

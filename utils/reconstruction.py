@@ -19,14 +19,21 @@ def pixel_to_model(row, col):
 
 
 def extract_scatterers_from_mat(mat_path):
-    """Extracts the pristine ground truth scatterers directly from the .mat file."""
+    """
+    修正版：正确地从嵌套的MATLAB元胞数组中提取散射中心参数。
+    """
     scatterers = []
     try:
         mat_data = sio.loadmat(mat_path)
-        scatter_all = mat_data["scatter_all"][0]
-        for item in scatter_all:
-            params = item[0]
-            # [x, y, alpha, gamma, phi_prime, L, A]
+        # 1. 直接获取最外层的 object 数组
+        scatter_all_obj_array = mat_data["scatter_all"]
+
+        # 2. 遍历这个 object 数组
+        for cell in scatter_all_obj_array:
+            # 3. 提取每个元胞中的参数数组 (通常在 cell[0][0])
+            params = cell[0][0]
+
+            # 4. 提取参数并添加到列表
             scatterers.append(
                 {
                     "x": params[0],
@@ -38,8 +45,8 @@ def extract_scatterers_from_mat(mat_path):
                     "A": params[6],
                 }
             )
-    except Exception as e:
-        print(f"Warning: Could not read ground truth .mat file {mat_path}: {e}")
+    except (KeyError, IndexError, FileNotFoundError) as e:
+        print(f"警告: 读取或解析 .mat 文件时出错 {mat_path}: {e}")
     return scatterers
 
 

@@ -1,9 +1,12 @@
+# script/visualize_reconstruction.py (修改后)
+
 import os
 import sys
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from PIL import Image  # --- 新增 --- 导入PIL库用于图像读取
 
 # --- Setup Project Path ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,6 +23,19 @@ from utils.reconstruction import (
 )
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+
+
+# --- 修改 --- 新增一个辅助函数，用于根据SAR文件路径找到对应的JPG文件
+def find_corresponding_jpg_file(sar_path):
+    """根据SAR .raw文件路径，找到对应的_v1.JPG预览图路径。"""
+    # 定义JPG预览图的根目录
+    jpg_root = os.path.join(project_root, "datasets", "SAR_ASC_Project", "02_Data_Processed_jpg_tmp", "test_15_deg", "T72", "SN_132")
+
+    # 从SAR .raw文件路径中获取相对路径和基本文件名
+    rel_path = os.path.relpath(os.path.dirname(sar_path), config.SAR_RAW_ROOT)
+    base_name = os.path.basename(sar_path).replace(".128x128.raw", "_v1.JPG")  # 对应于step2脚本生成的v1版本
+
+    return os.path.join(jpg_root, rel_path, base_name)
 
 
 def find_corresponding_mat_file(sar_path):
@@ -54,35 +70,42 @@ def main():
         sar_path = os.path.normpath(sample_info["sar"])
         base_name = os.path.basename(sar_path).replace(".128x128.raw", "")
 
-        # a. Load original SAR image (shape [1, H, W])
-        sar_tensor = read_sar_complex_tensor(sar_path, config.IMG_HEIGHT, config.IMG_WIDTH)
-        if sar_tensor is None:
+        # --- 修改: 加载原始SAR图像部分 ---
+        # a. 从JPG文件加载用于显示的原始SAR图像
+        jpg_path = find_corresponding_jpg_file(sar_path)
+        if not os.path.exists(jpg_path):
+            print(f"Warning: Skipping {base_name}, JPG file not found at {jpg_path}")
+            continue
+        original_sar_image_display = Image.open(jpg_path)
+
+        # b. 仍然加载原始复数数据用于模型推理
+        sar_tensor_for_model = read_sar_complex_tensor(sar_path, config.IMG_HEIGHT, config.IMG_WIDTH)
+        if sar_tensor_for_model is None:
             continue
 
-        # b. Reconstruct from GROUND TRUTH (using pristine .mat file)
+        # c. Reconstruct from GROUND TRUTH (using pristine .mat file)
         gt_mat_path = find_corresponding_mat_file(sar_path)
         gt_scatterers = extract_scatterers_from_mat(gt_mat_path)
         recon_gt_img = reconstruct_sar_image(gt_scatterers)
 
-        # c. Reconstruct from PREDICTION
+        # d. Reconstruct from PREDICTION
         with torch.no_grad():
-            # --- FIX: Add a batch dimension with unsqueeze(0) before passing to the model ---
-            # Input to model must be 4D: [N, C, H, W]
-            input_tensor = sar_tensor.unsqueeze(0).to(config.DEVICE)
+            input_tensor = sar_tensor_for_model.unsqueeze(0).to(config.DEVICE)
             predicted_maps = model(input_tensor).squeeze(0).cpu().numpy()
 
         pred_scatterers = extract_scatterers_from_prediction_5ch(predicted_maps)
         recon_pred_img = reconstruct_sar_image(pred_scatterers)
 
-        # d. Visualize and Save
+        # e. Visualize and Save
         fig, axes = plt.subplots(1, 3, figsize=(18, 6))
         fig.suptitle(f"Image Reconstruction Comparison: {base_name}", fontsize=16)
 
-        original_img_mag = np.abs(sar_tensor[0].numpy())
-        vmax = np.percentile(original_img_mag, 99.9)
+        # --- 修改: 更新可视化部分 ---
+        # 使用从JPG加载的图像进行显示，并计算vmax用于其他两个图
+        vmax = np.percentile(np.abs(sar_tensor_for_model[0].numpy()), 99.9)
 
-        axes[0].imshow(original_img_mag, cmap="gray", vmin=0, vmax=vmax)
-        axes[0].set_title("Original SAR Image")
+        axes[0].imshow(original_sar_image_display, cmap="gray")
+        axes[0].set_title("Original SAR Image (from JPG)")
         axes[0].axis("off")
 
         axes[1].imshow(np.abs(recon_gt_img), cmap="gray", vmin=0, vmax=vmax)

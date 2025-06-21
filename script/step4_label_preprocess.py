@@ -37,17 +37,25 @@ def model_to_pixel(x_model, y_model):
 
 
 def main():
-    # 确保输出目录存在
-    os.makedirs(config.LABEL_SAVE_ROOT_5CH, exist_ok=True)
+    # --- NEW: Get current paths based on configuration ---
+    paths = config.get_current_paths()
+    asc_mat_root = paths["asc_mat_root"]
+    label_save_root = paths["label_save_root"]
 
-    print(f"Reading .mat files from: {config.ASC_MAT_ROOT}")
-    print(f"Saving 5-channel .npy labels to: {config.LABEL_SAVE_ROOT_5CH}")
+    # 确保输出目录存在
+    os.makedirs(label_save_root, exist_ok=True)
+
+    print(f"Processing mode: {'Complete Dataset' if config.USE_COMPLETE_DATASET else 'Testing Dataset'}")
+    print(f"Reading .mat files from: {asc_mat_root}")
+    print(f"Saving 5-channel .npy labels to: {label_save_root}")
 
     all_mat_files = []
-    for root, _, fnames in os.walk(config.ASC_MAT_ROOT):
+    for root, _, fnames in os.walk(asc_mat_root):
         for fname in fnames:
             if fname.endswith("_yang.mat"):
                 all_mat_files.append(os.path.join(root, fname))
+
+    print(f"Found {len(all_mat_files)} .mat files to process")
 
     for mat_path in tqdm(all_mat_files, desc="Generating Labels"):
         try:
@@ -104,14 +112,26 @@ def main():
             label_map[3, row_c, col_c] = dx
             label_map[4, row_c, col_c] = dy
 
-        # 保存5通道的.npy文件
+        # 保存5通道的.npy文件，保持相对路径结构
         output_filename = os.path.basename(mat_path).replace("_yang.mat", "_5ch.npy")
-        relative_path = os.path.relpath(os.path.dirname(mat_path), config.ASC_MAT_ROOT)
-        output_dir = os.path.join(config.LABEL_SAVE_ROOT_5CH, relative_path)
+        relative_path = os.path.relpath(os.path.dirname(mat_path), asc_mat_root)
+        output_dir = os.path.join(label_save_root, relative_path)
         os.makedirs(output_dir, exist_ok=True)
         np.save(os.path.join(output_dir, output_filename), label_map)
 
-    print("\nLabel generation complete.")
+    # 打印标签生成完成信息，显示处理的文件总数
+    print(f"\nLabel generation complete. Processed {len(all_mat_files)} files.")
+    if config.USE_COMPLETE_DATASET:
+        print("\nDataset structure:")
+        for split in [config.TRAIN_FOLDER, config.TEST_FOLDER]:
+            for class_name in config.TARGET_CLASSES:
+                class_dir = os.path.join(label_save_root, split, class_name)
+                if os.path.exists(class_dir):
+                    # 递归统计所有子目录中的npy文件
+                    count = 0
+                    for root, dirs, files in os.walk(class_dir):
+                        count += len([f for f in files if f.endswith("_5ch.npy")])
+                    print(f"  {split}/{class_name}: {count} samples")
 
 
 if __name__ == "__main__":

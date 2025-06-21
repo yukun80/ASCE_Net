@@ -13,10 +13,10 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.append(project_root)
 
-from model.asc_net import ASCNet_v3_5param
-from utils import config
-from utils.dataset import MSTAR_ASC_5CH_Dataset, read_sar_complex_tensor
-from utils.reconstruction import (
+from model.asc_net import ASCNet_v3_5param  # noqa: E402
+from utils import config  # noqa: E402
+from utils.dataset import MSTAR_ASC_5CH_Dataset, read_sar_complex_tensor  # noqa: E402
+from utils.reconstruction import (  # noqa: E402
     extract_scatterers_from_mat,
     extract_scatterers_from_prediction_5ch,
     reconstruct_sar_image,
@@ -25,24 +25,57 @@ from utils.reconstruction import (
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 
-# --- 修改 --- 新增一个辅助函数，用于根据SAR文件路径找到对应的JPG文件
 def find_corresponding_jpg_file(sar_path):
     """根据SAR .raw文件路径，找到对应的_v1.JPG预览图路径。"""
-    # 定义JPG预览图的根目录
-    jpg_root = os.path.join(project_root, "datasets", "SAR_ASC_Project", "02_Data_Processed_jpg_tmp", "test_15_deg", "T72", "SN_132")
+    # Get current paths based on configuration
+    paths = config.get_current_paths()
 
-    # 从SAR .raw文件路径中获取相对路径和基本文件名
-    rel_path = os.path.relpath(os.path.dirname(sar_path), config.SAR_RAW_ROOT)
-    base_name = os.path.basename(sar_path).replace(".128x128.raw", "_v1.JPG")  # 对应于step2脚本生成的v1版本
+    if config.USE_COMPLETE_DATASET:
+        # For complete dataset, use the same relative path structure as SAR files
+        rel_path = os.path.relpath(os.path.dirname(sar_path), paths["sar_raw_root"])
+        base_name = os.path.basename(sar_path).replace(".128x128.raw", "_v1.jpg")
 
-    return os.path.join(jpg_root, rel_path, base_name)
+        # Define JPG root for complete dataset
+        jpg_root = os.path.join(project_root, "datasets", "SAR_ASC_Project", "02_Data_Processed_jpg")
+        jpg_path = os.path.join(jpg_root, rel_path, base_name)
+
+        # If the JPG file doesn't exist in the expected location, search for it
+        if not os.path.exists(jpg_path):
+            # Extract class and split from relative path
+            path_parts = rel_path.split(os.sep)
+            if len(path_parts) >= 2:
+                split_name = path_parts[0]  # e.g., "test_15_deg"
+                class_name = path_parts[1]  # e.g., "T72"
+
+                # Search through SN subdirectories in JPG folder
+                jpg_class_dir = os.path.join(jpg_root, split_name, class_name)
+                if os.path.exists(jpg_class_dir):
+                    for sn_dir in os.listdir(jpg_class_dir):
+                        sn_path = os.path.join(jpg_class_dir, sn_dir)
+                        if os.path.isdir(sn_path):
+                            potential_jpg = os.path.join(sn_path, base_name)
+                            if os.path.exists(potential_jpg):
+                                jpg_path = potential_jpg
+                                break
+    else:
+        # Legacy path for testing
+        jpg_root = os.path.join(
+            project_root, "datasets", "SAR_ASC_Project", "02_Data_Processed_jpg_tmp", "test_15_deg", "T72", "SN_132"
+        )
+        base_name = os.path.basename(sar_path).replace(".128x128.raw", "_v1.JPG")
+        jpg_path = os.path.join(jpg_root, base_name)
+
+    return jpg_path
 
 
 def find_corresponding_mat_file(sar_path):
     """Finds the original .mat label file corresponding to a SAR image path."""
-    rel_path = os.path.relpath(os.path.dirname(sar_path), config.SAR_RAW_ROOT)
+    # Get current paths based on configuration
+    paths = config.get_current_paths()
+
+    rel_path = os.path.relpath(os.path.dirname(sar_path), paths["sar_raw_root"])
     base_name = os.path.basename(sar_path).replace(".128x128.raw", "_yang.mat")
-    return os.path.join(config.ASC_MAT_ROOT, rel_path, base_name)
+    return os.path.join(paths["asc_mat_root"], rel_path, base_name)
 
 
 def main():
@@ -60,21 +93,36 @@ def main():
     print(f"Reconstruction plots will be saved in: {output_dir}")
 
     print("Discovering dataset samples...")
-    dataset = MSTAR_ASC_5CH_Dataset()
+    print(f"Dataset mode: {'Complete Dataset' if config.USE_COMPLETE_DATASET else 'Testing Dataset'}")
+
+    # Load test dataset for visualization
+    if config.USE_COMPLETE_DATASET:
+        dataset = MSTAR_ASC_5CH_Dataset(split="test")  # Use test set for visualization
+    else:
+        dataset = MSTAR_ASC_5CH_Dataset()  # Use all available data
+
     if not dataset.samples:
         print("No valid samples found.")
         return
     print(f"Found {len(dataset.samples)} samples to visualize.")
 
-    for sample_info in tqdm(dataset.samples, desc="Generating Reconstructions"):
+    for i, sample_info in enumerate(tqdm(dataset.samples, desc="Generating Reconstructions")):
         sar_path = os.path.normpath(sample_info["sar"])
         base_name = os.path.basename(sar_path).replace(".128x128.raw", "")
+
+        # Get sample metadata if using complete dataset
+        if config.USE_COMPLETE_DATASET:
+            class_name = sample_info["class"]
+            split_name = sample_info["split"]
+            display_name = f"{split_name}_{class_name}_{base_name}"
+        else:
+            display_name = base_name
 
         # --- 修改: 加载原始SAR图像部分 ---
         # a. 从JPG文件加载用于显示的原始SAR图像
         jpg_path = find_corresponding_jpg_file(sar_path)
         if not os.path.exists(jpg_path):
-            print(f"Warning: Skipping {base_name}, JPG file not found at {jpg_path}")
+            print(f"Warning: Skipping {display_name}, JPG file not found at {jpg_path}")
             continue
         original_sar_image_display = Image.open(jpg_path)
 
@@ -98,7 +146,7 @@ def main():
 
         # e. Visualize and Save
         fig, axes = plt.subplots(1, 3, figsize=(18, 6))
-        fig.suptitle(f"Image Reconstruction Comparison: {base_name}", fontsize=16)
+        fig.suptitle(f"Image Reconstruction Comparison: {display_name}", fontsize=16)
 
         # --- 修改: 更新可视化部分 ---
         # 使用从JPG加载的图像进行显示，并计算vmax用于其他两个图
@@ -117,9 +165,14 @@ def main():
         axes[2].axis("off")
 
         plt.tight_layout(rect=[0, 0, 1, 0.95])
-        save_path = os.path.join(output_dir, f"reconstruction_{base_name}.png")
+        save_path = os.path.join(output_dir, f"reconstruction_{display_name}.png")
         plt.savefig(save_path)
         plt.close(fig)
+
+        # Optionally limit the number of visualizations
+        if i >= 10:  # Limit to first 10 samples for quick testing
+            print(f"Limiting visualization to first {i+1} samples for testing...")
+            break
 
     print(f"\nReconstruction and visualization complete. Check the '{output_dir}' folder.")
 

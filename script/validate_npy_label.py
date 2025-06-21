@@ -3,7 +3,15 @@ import scipy.io as sio
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
+import sys
 import argparse
+
+# --- 动态添加项目根目录到Python路径 ---
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+sys.path.append(project_root)
+
+from utils import config  # noqa: E402
 
 # --- 配置参数 ---
 IMG_HEIGHT = 128
@@ -64,11 +72,74 @@ def decode_asc_from_npy(npy_data):
     return scatterers
 
 
+def find_sample_files(basename, split="test_15_deg", class_name="T72"):
+    """Find corresponding files for a given sample with SN subdirectory support"""
+    # Get current paths based on configuration
+    paths = config.get_current_paths()
+
+    if config.USE_COMPLETE_DATASET:
+        # For complete dataset, we need to search within SN subdirectories
+
+        # Search for the mat file first to determine the correct SN directory
+        mat_class_dir = os.path.join(paths["asc_mat_root"], split, class_name)
+        asc_mat_path = None
+        label_npy_path = None
+        sar_jpg_path = None
+
+        if os.path.exists(mat_class_dir):
+            # Search through all SN subdirectories
+            for sn_dir in os.listdir(mat_class_dir):
+                sn_path = os.path.join(mat_class_dir, sn_dir)
+                if os.path.isdir(sn_path):
+                    potential_mat = os.path.join(sn_path, f"{basename}_yang.mat")
+                    if os.path.exists(potential_mat):
+                        asc_mat_path = potential_mat
+
+                        # Find corresponding npy file
+                        npy_sn_path = os.path.join(paths["label_save_root"], split, class_name, sn_dir)
+                        potential_npy = os.path.join(npy_sn_path, f"{basename}_5ch.npy")
+                        if os.path.exists(potential_npy):
+                            label_npy_path = potential_npy
+
+                        # Find corresponding JPG file (may need to adjust based on your JPG structure)
+                        data_root = os.path.join(project_root, "datasets", "SAR_ASC_Project")
+                        jpg_sn_path = os.path.join(data_root, "02_Data_Processed_jpg", split, class_name, sn_dir)
+                        potential_jpg = os.path.join(jpg_sn_path, f"{basename}_v1.jpg")
+                        if os.path.exists(potential_jpg):
+                            sar_jpg_path = potential_jpg
+
+                        break
+
+        # If not found, provide default paths for error reporting
+        if asc_mat_path is None:
+            asc_mat_path = os.path.join(paths["asc_mat_root"], split, class_name, "SN_XXX", f"{basename}_yang.mat")
+        if label_npy_path is None:
+            label_npy_path = os.path.join(paths["label_save_root"], split, class_name, "SN_XXX", f"{basename}_5ch.npy")
+        if sar_jpg_path is None:
+            data_root = os.path.join(project_root, "datasets", "SAR_ASC_Project")
+            sar_jpg_path = os.path.join(
+                data_root, "02_Data_Processed_jpg", split, class_name, "SN_XXX", f"{basename}_v1.jpg"
+            )
+
+    else:
+        # Legacy paths for testing
+        data_root = os.path.join(project_root, "datasets", "SAR_ASC_Project")
+        sar_jpg_path = os.path.join(
+            data_root, "02_Data_Processed_jpg_tmp", "test_15_deg", "T72", "SN_132", f"{basename}_v1.jpg"
+        )
+        asc_mat_path = os.path.join(paths["asc_mat_root"], f"{basename}_yang.mat")
+        label_npy_path = os.path.join(paths["label_save_root"], f"{basename}_5ch.npy")
+
+    return sar_jpg_path, asc_mat_path, label_npy_path
+
+
 def visualize_and_validate(basename, sar_jpg_path, asc_mat_path, label_npy_path):
     """主可视化和验证函数"""
     if not all(os.path.exists(p) for p in [sar_jpg_path, asc_mat_path, label_npy_path]):
-        print(f"错误：样本 {basename} 的文件不完整，请检查路径。")
-        # ... (错误处理) ...
+        missing_files = [p for p in [sar_jpg_path, asc_mat_path, label_npy_path] if not os.path.exists(p)]
+        print(f"错误：样本 {basename} 的文件不完整，缺失文件：")
+        for missing in missing_files:
+            print(f"  - {missing}")
         return
 
     # 加载数据
@@ -92,7 +163,6 @@ def visualize_and_validate(basename, sar_jpg_path, asc_mat_path, label_npy_path)
     fig, axes = plt.subplots(2, 3, figsize=(18, 11))
     fig.suptitle(f"Validation for: {basename}", fontsize=16)
 
-    # ... (与之前相同的绘图逻辑, 但使用新的 pixel_coords*) ...
     axes[0, 0].imshow(sar_image, cmap="gray")
     if pixel_coords_from_mat:
         rows, cols = zip(*pixel_coords_from_mat)
@@ -124,13 +194,83 @@ def visualize_and_validate(basename, sar_jpg_path, asc_mat_path, label_npy_path)
     plt.show()
 
 
-if __name__ == "__main__":
-    basename = "HB03335.015"
-    data_dir = r"E:\Document\paper_library\3rd_paper_250512\code\ASCE_Net\datasets\SAR_ASC_Project"
-    sar_jpg_path = os.path.join(
-        data_dir, "02_Data_Processed_jpg_tmp", "test_15_deg", "T72", "SN_132", f"{basename}_v1.jpg"
-    )
-    asc_mat_path = os.path.join(data_dir, "tmp_Training_ASC", f"{basename}_yang.mat")
-    label_npy_path = os.path.join(data_dir, "tmp_MSTAR_ASC_LABELS", f"{basename}_5ch.npy")
+def list_available_samples(split="test_15_deg", class_name="T72", limit=10):
+    """List available samples for validation"""
+    paths = config.get_current_paths()
 
-    visualize_and_validate(basename, sar_jpg_path, asc_mat_path, label_npy_path)
+    if config.USE_COMPLETE_DATASET:
+        mat_class_dir = os.path.join(paths["asc_mat_root"], split, class_name)
+        if os.path.exists(mat_class_dir):
+            samples = []
+            for sn_dir in os.listdir(mat_class_dir):
+                sn_path = os.path.join(mat_class_dir, sn_dir)
+                if os.path.isdir(sn_path):
+                    for file in os.listdir(sn_path):
+                        if file.endswith("_yang.mat"):
+                            basename = file.replace("_yang.mat", "")
+                            samples.append(basename)
+                            if len(samples) >= limit:
+                                break
+                if len(samples) >= limit:
+                    break
+            return samples
+    else:
+        # Legacy mode
+        if os.path.exists(paths["asc_mat_root"]):
+            samples = []
+            for file in os.listdir(paths["asc_mat_root"]):
+                if file.endswith("_yang.mat"):
+                    basename = file.replace("_yang.mat", "")
+                    samples.append(basename)
+                    if len(samples) >= limit:
+                        break
+            return samples
+
+    return []
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Validate NPY labels against MAT files")
+    parser.add_argument("--basename", type=str, default="HB03335.015", help="Base filename to validate")
+    parser.add_argument("--split", type=str, default="test_15_deg", help="Dataset split (train_17_deg or test_15_deg)")
+    parser.add_argument("--class_name", type=str, default="T72", help="Target class (BTR70, BMP2, T72)")
+    parser.add_argument("--list_samples", action="store_true", help="List available samples for validation")
+
+    args = parser.parse_args()
+
+    print(f"Dataset mode: {'Complete Dataset' if config.USE_COMPLETE_DATASET else 'Testing Dataset'}")
+
+    # If user wants to list samples
+    if args.list_samples:
+        print(f"\nAvailable samples in {args.split}/{args.class_name}:")
+        samples = list_available_samples(args.split, args.class_name, limit=20)
+        for i, sample in enumerate(samples, 1):
+            print(f"  {i:2d}. {sample}")
+        print("\nUse any of these samples with --basename option")
+        print(
+            f"Example: python script/validate_npy_label.py --basename {samples[0] if samples else 'SAMPLE_NAME'} --split {args.split} --class_name {args.class_name}"
+        )
+        exit(0)
+
+    sar_jpg_path, asc_mat_path, label_npy_path = find_sample_files(args.basename, args.split, args.class_name)
+
+    print(f"Validating sample: {args.basename}")
+    print(f"SAR JPG: {sar_jpg_path}")
+    print(f"ASC MAT: {asc_mat_path}")
+    print(f"Label NPY: {label_npy_path}")
+
+    visualize_and_validate(args.basename, sar_jpg_path, asc_mat_path, label_npy_path)
+
+'''
+# 列出测试集T72类别的可用样本
+python script/validate_npy_label.py --list_samples --split test_15_deg --class_name T72
+
+# 列出训练集BTR70类别的可用样本  
+python script/validate_npy_label.py --list_samples --split train_17_deg --class_name BTR70
+
+# 验证T72类别的样本
+python script/validate_npy_label.py --basename HB04001.015.128x128 --split train_17_deg --class_name T72
+
+# 验证BTR70类别的样本
+python script/validate_npy_label.py --basename HB05000.004 --split test_15_deg --class_name BTR70
+'''

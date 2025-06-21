@@ -91,23 +91,48 @@ def find_sample_files(basename, split="test_15_deg", class_name="T72"):
             for sn_dir in os.listdir(mat_class_dir):
                 sn_path = os.path.join(mat_class_dir, sn_dir)
                 if os.path.isdir(sn_path):
-                    potential_mat = os.path.join(sn_path, f"{basename}_yang.mat")
-                    if os.path.exists(potential_mat):
-                        asc_mat_path = potential_mat
+                    # Try different file naming patterns
+                    potential_patterns = [f"{basename}_yang.mat", f"{basename}.128x128_yang.mat"]
 
-                        # Find corresponding npy file
-                        npy_sn_path = os.path.join(paths["label_save_root"], split, class_name, sn_dir)
-                        potential_npy = os.path.join(npy_sn_path, f"{basename}_5ch.npy")
-                        if os.path.exists(potential_npy):
-                            label_npy_path = potential_npy
+                    for pattern in potential_patterns:
+                        potential_mat = os.path.join(sn_path, pattern)
+                        if os.path.exists(potential_mat):
+                            asc_mat_path = potential_mat
 
-                        # Find corresponding JPG file (may need to adjust based on your JPG structure)
-                        data_root = os.path.join(project_root, "datasets", "SAR_ASC_Project")
-                        jpg_sn_path = os.path.join(data_root, "02_Data_Processed_jpg", split, class_name, sn_dir)
-                        potential_jpg = os.path.join(jpg_sn_path, f"{basename}_v1.jpg")
-                        if os.path.exists(potential_jpg):
-                            sar_jpg_path = potential_jpg
+                            # Extract the actual basename from the found file
+                            actual_basename = os.path.basename(potential_mat).replace("_yang.mat", "")
 
+                            # Find corresponding npy file
+                            npy_sn_path = os.path.join(paths["label_save_root"], split, class_name, sn_dir)
+                            potential_npy = os.path.join(npy_sn_path, f"{actual_basename}_5ch.npy")
+                            if os.path.exists(potential_npy):
+                                label_npy_path = potential_npy
+
+                                # Find corresponding JPG file - try both jpg and jpg_tmp directories
+                            data_root = os.path.join(project_root, "datasets", "SAR_ASC_Project")
+                            jpg_dirs = ["02_Data_Processed_jpg"]
+
+                            for jpg_dir in jpg_dirs:
+                                jpg_sn_path = os.path.join(data_root, jpg_dir, split, class_name, sn_dir)
+                                if os.path.exists(jpg_sn_path):
+                                    # Try different file extensions and basename formats
+                                    jpg_patterns = [
+                                        f"{actual_basename}_v1.jpg",
+                                        f"{actual_basename}_v1.JPG",
+                                        f"{basename}_v1.jpg",
+                                        f"{basename}_v1.JPG",
+                                    ]
+                                    for jpg_pattern in jpg_patterns:
+                                        potential_jpg = os.path.join(jpg_sn_path, jpg_pattern)
+                                        if os.path.exists(potential_jpg):
+                                            sar_jpg_path = potential_jpg
+                                            break
+                                    if sar_jpg_path:
+                                        break
+
+                            break
+
+                    if asc_mat_path:  # Found a match, break out of SN directory loop
                         break
 
         # If not found, provide default paths for error reporting
@@ -208,7 +233,12 @@ def list_available_samples(split="test_15_deg", class_name="T72", limit=10):
                     for file in os.listdir(sn_path):
                         if file.endswith("_yang.mat"):
                             basename = file.replace("_yang.mat", "")
-                            samples.append(basename)
+                            # Convert back to user-friendly format by removing .128x128 if present
+                            if ".128x128" in basename:
+                                user_basename = basename.replace(".128x128", "")
+                            else:
+                                user_basename = basename
+                            samples.append(user_basename)
                             if len(samples) >= limit:
                                 break
                 if len(samples) >= limit:
@@ -221,7 +251,12 @@ def list_available_samples(split="test_15_deg", class_name="T72", limit=10):
             for file in os.listdir(paths["asc_mat_root"]):
                 if file.endswith("_yang.mat"):
                     basename = file.replace("_yang.mat", "")
-                    samples.append(basename)
+                    # Convert back to user-friendly format by removing .128x128 if present
+                    if ".128x128" in basename:
+                        user_basename = basename.replace(".128x128", "")
+                    else:
+                        user_basename = basename
+                    samples.append(user_basename)
                     if len(samples) >= limit:
                         break
             return samples
@@ -261,7 +296,7 @@ if __name__ == "__main__":
 
     visualize_and_validate(args.basename, sar_jpg_path, asc_mat_path, label_npy_path)
 
-'''
+"""
 # 列出测试集T72类别的可用样本
 python script/validate_npy_label.py --list_samples --split test_15_deg --class_name T72
 
@@ -269,8 +304,8 @@ python script/validate_npy_label.py --list_samples --split test_15_deg --class_n
 python script/validate_npy_label.py --list_samples --split train_17_deg --class_name BTR70
 
 # 验证T72类别的样本
-python script/validate_npy_label.py --basename HB04001.015.128x128 --split train_17_deg --class_name T72
+python script/validate_npy_label.py --basename HB03334.015 --split test_15_deg --class_name T72
 
 # 验证BTR70类别的样本
 python script/validate_npy_label.py --basename HB05000.004 --split test_15_deg --class_name BTR70
-'''
+"""

@@ -1,102 +1,89 @@
+# utils/dataset.py (最终修正版)
 import os
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 from utils import config
+from collections import Counter
 
 
 def read_sar_complex_tensor(file_path, height, width):
-    """Reads SAR complex data from a .raw file with the correct byte order."""
+    """从.raw文件中读取SAR复数数据。"""
     try:
         data = np.fromfile(file_path, dtype=">f4")
         if data.size != height * width * 2:
+            print(f"警告: 文件大小不匹配 {file_path}, 期望 {height * width * 2}, 得到 {data.size}")
             return None
+
         magnitude = data[: height * width].reshape(height, width)
         phase = data[height * width :].reshape(height, width)
+
         real_part = np.nan_to_num(magnitude * np.cos(phase))
         imag_part = np.nan_to_num(magnitude * np.sin(phase))
+
         complex_tensor = torch.complex(torch.from_numpy(real_part).float(), torch.from_numpy(imag_part).float())
+
         return complex_tensor.unsqueeze(0)
-    except Exception:
+    except Exception as e:
+        print(f"错误: 读取文件时发生异常 {file_path}: {e}")
         return None
 
 
 class MSTAR_ASC_5CH_Dataset(Dataset):
-    """Dataset for loading SAR images and their corresponding 5-channel labels."""
+    """为加载SAR图像及其对应的5通道标签而设计的数据集。"""
 
-    def __init__(self, split=None, target_classes=None):
+    def __init__(self, split="train", vehicle_types=None):
         """
-        Args:
-            split (str): 'train', 'test', or None (use all data)
-            target_classes (list): List of target classes to include, or None for all
+        初始化数据集。
+        :param split: 'train' 或 'test'，用于选择数据集部分。
+        :param vehicle_types: (可选) 一个列表，用于筛选特定的车辆类型。
         """
-        # --- NEW: Get current paths based on configuration ---
-        paths = config.get_current_paths()
-        self.label_root = paths["label_save_root"]
-        self.sar_root = paths["sar_raw_root"]
-        self.samples = []
-
-        # --- NEW: Split and class filtering ---
         self.split = split
-        self.target_classes = target_classes or config.TARGET_CLASSES
+        self.sar_root = config.SAR_RAW_ROOT
+        self.label_root = config.LABEL_SAVE_ROOT_5CH
+        self.samples = []
+        self.class_to_idx = {cls: i for i, cls in enumerate(config.VEHICLE_TYPES)}
 
-        if not os.path.exists(self.label_root):
-            raise FileNotFoundError(f"Label directory not found: {self.label_root}")
+        print(f"Dataset mode: {self.split.capitalize()}")
 
-        if not os.path.exists(self.sar_root):
-            raise FileNotFoundError(f"SAR data directory not found: {self.sar_root}")
-
-        # --- NEW: Determine which folders to search ---
-        if config.USE_COMPLETE_DATASET:
-            if split == "train":
-                search_folders = [config.TRAIN_FOLDER]
-            elif split == "test":
-                search_folders = [config.TEST_FOLDER]
-            elif split is None:
-                search_folders = [config.TRAIN_FOLDER, config.TEST_FOLDER]
-            else:
-                raise ValueError(f"Invalid split: {split}. Must be 'train', 'test', or None")
+        # --- 核心逻辑修改：根据 split 参数确定搜索目录 ---
+        if self.split == "train":
+            search_dir = "train_17_deg"
+        elif self.split == "test":
+            search_dir = "test_15_deg"
         else:
-            # For testing dataset, search all folders
-            search_folders = ["."]  # Search from root
+            raise ValueError(f"无效的数据集分割参数: '{self.split}'. 必须是 'train' 或 'test'。")
 
-        for folder in search_folders:
-            search_path = os.path.join(self.label_root, folder) if config.USE_COMPLETE_DATASET else self.label_root
+        base_search_path = os.path.join(self.label_root, search_dir)
 
-            for dirpath, _, filenames in os.walk(search_path):
-                # --- NEW: Filter by target classes if using complete dataset ---
-                if config.USE_COMPLETE_DATASET:
-                    # Check if current directory corresponds to a target class
-                    current_class = os.path.basename(dirpath)
-                    if current_class not in self.target_classes:
+        if not os.path.exists(base_search_path):
+            raise FileNotFoundError(f"数据集目录未找到: {base_search_path}")
+
+        for dirpath, _, filenames in os.walk(base_search_path):
+            for filename in filenames:
+                if filename.endswith("_5ch.npy"):
+                    npy_basename = filename.replace("_5ch.npy", "")
+                    rel_path = os.path.relpath(dirpath, base_search_path)
+
+                    vehicle_type = rel_path.split(os.sep)[0]
+                    # 如果指定了车辆类型，则进行筛选
+                    if vehicle_types and vehicle_type not in vehicle_types:
                         continue
 
-                for filename in filenames:
-                    if filename.endswith("_5ch.npy"):
-                        label_path = os.path.join(dirpath, filename)
+                    sar_path = os.path.join(self.sar_root, search_dir, rel_path, f"{npy_basename}.raw")
+                    label_path = os.path.join(dirpath, filename)
 
-                        # Find corresponding raw SAR file
-                        raw_base_name = filename.replace("_5ch.npy", "")
-                        rel_dir = os.path.relpath(dirpath, self.label_root)
-                        sar_path = os.path.join(self.sar_root, rel_dir, raw_base_name + ".128x128.raw")
-
-                        if os.path.exists(sar_path):
-                            # --- NEW: Store additional metadata ---
-                            sample_info = {
-                                "sar": sar_path,
-                                "label": label_path,
-                                "class": current_class if config.USE_COMPLETE_DATASET else "unknown",
-                                "split": folder if config.USE_COMPLETE_DATASET else "unknown",
+                    if os.path.exists(sar_path) and vehicle_type in self.class_to_idx:
+                        self.samples.append(
+                            {
+                                "sar_path": sar_path,
+                                "label_path": label_path,
+                                "class_idx": self.class_to_idx[vehicle_type],
                             }
-                            self.samples.append(sample_info)
+                        )
 
-        print(f"Dataset initialized with {len(self.samples)} samples")
-        if config.USE_COMPLETE_DATASET and split:
-            class_counts = {}
-            for sample in self.samples:
-                class_name = sample["class"]
-                class_counts[class_name] = class_counts.get(class_name, 0) + 1
-            print(f"Class distribution in {split} set: {class_counts}")
+        print(f"Dataset initialized with {len(self.samples)} samples for '{self.split}' split.")
+        self.print_class_distribution()
 
     def __len__(self):
         return len(self.samples)
@@ -104,15 +91,29 @@ class MSTAR_ASC_5CH_Dataset(Dataset):
     def __getitem__(self, idx):
         sample_info = self.samples[idx]
 
-        sar_tensor = read_sar_complex_tensor(sample_info["sar"], config.IMG_HEIGHT, config.IMG_WIDTH)
-        label_tensor = torch.from_numpy(np.load(sample_info["label"])).float()
+        sar_path = sample_info["sar_path"]
+        label_path = sample_info["label_path"]
+
+        sar_tensor = read_sar_complex_tensor(sar_path, config.IMG_HEIGHT, config.IMG_WIDTH)
 
         if sar_tensor is None:
-            # Handle corrupted data by loading the next sample
+            print(f"警告: 加载样本失败 {sar_path}, 将尝试加载下一个样本。")
             return self.__getitem__((idx + 1) % len(self))
+
+        label_tensor = torch.from_numpy(np.load(label_path)).float()
 
         return sar_tensor, label_tensor
 
-    def get_sample_info(self, idx):
-        """Return metadata about a specific sample"""
-        return self.samples[idx]
+    def print_class_distribution(self):
+        """打印数据集中各类别的样本数量分布。"""
+        if not self.samples:
+            print("Class distribution: {}")
+            return
+
+        class_indices = [s["class_idx"] for s in self.samples]
+        counts = Counter(class_indices)
+
+        idx_to_class = {i: cls for cls, i in self.class_to_idx.items()}
+        distribution = {idx_to_class[i]: count for i, count in sorted(counts.items())}
+
+        print(f"Class distribution for '{self.split}' split: {distribution}")

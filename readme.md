@@ -51,23 +51,50 @@ ASCE_Net/
 ├── .gitignore
 
 the dataset structure is show blow:
-datasets/SAR_ASC_Project/
-├── 03_Training_ASC/           # MAT文件
-│   ├── train_17_deg/
-│   │   ├── T72/
-│   │   │   ├── SN_132/        # <- SN子目录
-│   │   │   │   ├── HB04001.015_yang.mat
-│   │   │   │   └── HB04002.015_yang.mat
-│   │   │   └── SN_812/
-│   │   └── BTR70/...
-│   └── test_15_deg/...
-├── 04_MSTAR_ASC_LABELS/       # NPY文件（处理后）
-│   ├── train_17_deg/
-│   │   ├── T72/
-│   │   │   ├── SN_132/        # <- 相同的SN子目录结构
-│   │   │   │   ├── HB04001.015_5ch.npy
-│   │   │   │   └── HB04002.015_5ch.npy
-│   │   │   └── SN_812/
-└── 02_Data_Processed_jpg/     # JPG文件（如果有）
-    └── ... (相同结构)
+SAR_ASC_Project/
+├── 00_Data_Raw/                          # 原始MSTAR数据
+├── 01_Data_Processed_mat/                # 预处理后的MAT文件
+├── 02_Data_Processed_raw/                # 预处理后的RAW文件
+│   ├── train_17_deg/                     # 训练数据(17度)
+│   │   ├── BMP2/                         # BMP2目标类别
+│   │   ├── BTR70/                        # BTR70目标类别  
+│   │   └── T72/                          # T72目标类别
+│   │       ├── SN_132/                   # 序列号子目录
+│   │       ├── SN_812/                   # 序列号子目录
+│   │       └── SN_S7/                    # 序列号子目录
+│   └── test_15_deg/                      # 测试数据(15度)
+│       ├── BMP2/                         # BMP2目标类别
+│       ├── BTR70/                        # BTR70目标类别
+│       └── T72/                          # T72目标类别
+├── 02_Data_Processed_jpg/                # JPG格式处理数据
+├── 03_Training_ASC/                      # ASC训练数据(MAT格式)
+│   ├── train_17_deg/                     # 训练数据(17度)
+│   │   ├── BMP2/                         # BMP2目标类别
+│   │   ├── BTR70/                        # BTR70目标类别
+│   │   └── T72/                          # T72目标类别
+│   │       ├── SN_132/                   # 序列号子目录
+│   │       ├── SN_812/                   # 序列号子目录
+│   │       └── SN_S7/                    # 序列号子目录
+│   └── test_15_deg/                      # 测试数据(15度)
+│       ├── BMP2/                         # BMP2目标类别
+│       ├── BTR70/                        # BTR70目标类别
+│       └── T72/                          # T72目标类别
+├── 03_Training_ASC_reconstruct/          # ASC重构数据
+├── 03_Training_ASC_reconstruct_jpeg/     # ASC重构JPEG数据
+├── 04_MSTAR_ASC_LABELS/                  # 深度学习标签数据(NPY格式)
+│   ├── train_17_deg/                     # 训练标签(17度)
+│   │   ├── BMP2/                         # BMP2目标类别标签
+│   │   ├── BTR70/                        # BTR70目标类别标签
+│   │   └── T72/                          # T72目标类别标签
+│   │       ├── SN_132/                   # 序列号子目录标签
+│   │       ├── SN_812/                   # 序列号子目录标签
+│   │       └── SN_S7/                    # 序列号子目录标签
+│   └── test_15_deg/                      # 测试标签(15度)
+│       ├── BMP2/                         # BMP2目标类别标签
+│       ├── BTR70/                        # BTR70目标类别标签
+│       └── T72/                          # T72目标类别标签
+├── tmp_Data_Processed_raw/               # 临时RAW数据(测试用)
+├── tmp_MSTAR_ASC_LABELS/                 # 临时标签数据(测试用)
+├── tmp_Training_ASC/                     # 临时ASC数据(测试用)
+└── validation_outputs/                   # 验证输出结果
 ```

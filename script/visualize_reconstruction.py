@@ -29,11 +29,11 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 def find_corresponding_jpg_file(sar_path):
     """根据SAR .raw文件路径，找到对应的_v1.JPG预览图路径。"""
     # 定义JPG预览图的根目录
-    jpg_root = os.path.join(project_root, "datasets", "SAR_ASC_Project", "02_Data_Processed_jpg_tmp", "test_15_deg", "T72", "SN_132")
+    jpg_root = os.path.join(project_root, "datasets", "SAR_ASC_Project", "tmp_Data_Processed_jpg")
 
     # 从SAR .raw文件路径中获取相对路径和基本文件名
     rel_path = os.path.relpath(os.path.dirname(sar_path), config.SAR_RAW_ROOT)
-    base_name = os.path.basename(sar_path).replace(".128x128.raw", "_v1.JPG")  # 对应于step2脚本生成的v1版本
+    base_name = os.path.basename(sar_path).replace(".raw", "_v2.JPG")  # 对应于step2脚本生成的v1版本
 
     return os.path.join(jpg_root, rel_path, base_name)
 
@@ -41,7 +41,7 @@ def find_corresponding_jpg_file(sar_path):
 def find_corresponding_mat_file(sar_path):
     """Finds the original .mat label file corresponding to a SAR image path."""
     rel_path = os.path.relpath(os.path.dirname(sar_path), config.SAR_RAW_ROOT)
-    base_name = os.path.basename(sar_path).replace(".128x128.raw", "_yang.mat")
+    base_name = os.path.basename(sar_path).replace(".raw", ".mat")
     return os.path.join(config.ASC_MAT_ROOT, rel_path, base_name)
 
 
@@ -55,7 +55,7 @@ def main():
     model.eval()
     print("Model loaded successfully.")
 
-    output_dir = os.path.join(project_root, "visualizations")
+    output_dir = os.path.join(project_root, "datasets", "SAR_ASC_Project", "reconstruction_results")
     os.makedirs(output_dir, exist_ok=True)
     print(f"Reconstruction plots will be saved in: {output_dir}")
 
@@ -68,7 +68,7 @@ def main():
 
     for sample_info in tqdm(dataset.samples, desc="Generating Reconstructions"):
         sar_path = os.path.normpath(sample_info["sar"])
-        base_name = os.path.basename(sar_path).replace(".128x128.raw", "")
+        base_name = os.path.basename(sar_path).replace(".raw", "")
 
         # --- 修改: 加载原始SAR图像部分 ---
         # a. 从JPG文件加载用于显示的原始SAR图像

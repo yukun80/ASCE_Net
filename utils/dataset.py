@@ -34,13 +34,13 @@ class MSTAR_ASC_5CH_Dataset(Dataset):
 
         for dirpath, _, filenames in os.walk(self.label_root):
             for filename in filenames:
-                if filename.endswith("_5ch.npy"):
+                if filename.endswith(".npy"):
                     label_path = os.path.join(dirpath, filename)
 
                     # Find corresponding raw SAR file
-                    raw_base_name = filename.replace("_5ch.npy", "")
+                    raw_base_name = filename.replace(".npy", "")
                     rel_dir = os.path.relpath(dirpath, self.label_root)
-                    sar_path = os.path.join(self.sar_root, rel_dir, raw_base_name + ".128x128.raw")
+                    sar_path = os.path.join(self.sar_root, rel_dir, raw_base_name + ".raw")
 
                     if os.path.exists(sar_path):
                         self.samples.append({"sar": sar_path, "label": label_path})

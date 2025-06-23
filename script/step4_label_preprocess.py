@@ -105,7 +105,7 @@ def main():
             label_map[4, row_c, col_c] = dy
 
         # 保存5通道的.npy文件
-        output_filename = os.path.basename(mat_path).replace("_yang.mat", "_5ch.npy")
+        output_filename = os.path.basename(mat_path).replace(".mat", ".npy")
         relative_path = os.path.relpath(os.path.dirname(mat_path), config.ASC_MAT_ROOT)
         output_dir = os.path.join(config.LABEL_SAVE_ROOT_5CH, relative_path)
         os.makedirs(output_dir, exist_ok=True)

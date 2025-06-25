@@ -161,3 +161,28 @@ def reconstruct_sar_image(scatterers):
     img_complex = np.fft.ifftshift(np.fft.ifft2(np.fft.fftshift(Z)))
 
     return img_complex
+
+
+def get_enhanced_reconstruction_configs():
+    """
+    获取不同的增强配置，避免导入时执行
+    """
+    try:
+        from utils.enhanced_reconstruction import optimized_reconstruct_sar_image, ENHANCEMENT_CONFIGS
+
+        return optimized_reconstruct_sar_image, ENHANCEMENT_CONFIGS
+    except ImportError:
+        print("警告：无法导入增强重建模块，将使用标准重建方法")
+        return None, None
+
+
+def enhanced_reconstruct_sar_image(scatterers, config_name="moderate"):
+    """
+    使用增强配置重建SAR图像的便捷函数
+    """
+    optimized_func, configs = get_enhanced_reconstruction_configs()
+    if optimized_func is not None and configs is not None:
+        return optimized_func(scatterers, configs.get(config_name, configs["moderate"]))
+    else:
+        # 回退到标准重建方法
+        return reconstruct_sar_image(scatterers)

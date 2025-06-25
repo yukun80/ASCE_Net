@@ -84,10 +84,21 @@ def main():
 
         scheduler.step(avg_loss)
 
+        # --- Model Saving Strategy ---
+        # 1. Save best model (based on loss)
         if avg_loss < best_loss:
             best_loss = avg_loss
             torch.save(model.state_dict(), os.path.join(config.CHECKPOINT_DIR, config.MODEL_NAME))
-            print(f"Model saved to {config.CHECKPOINT_DIR}/{config.MODEL_NAME} with new best loss: {best_loss:.6f}")
+            print(
+                f"Best model saved to {config.CHECKPOINT_DIR}/{config.MODEL_NAME} with new best loss: {best_loss:.6f}"
+            )
+
+        # 2. Save model every 10 epochs
+        if (epoch + 1) % 5 == 0:
+            epoch_model_name = f"asc_net_v3_5param_epoch_{epoch+1:03d}.pth"
+            epoch_model_path = os.path.join(config.CHECKPOINT_DIR, epoch_model_name)
+            torch.save(model.state_dict(), epoch_model_path)
+            print(f"Periodic checkpoint saved to {config.CHECKPOINT_DIR}/{epoch_model_name}")
 
     writer.close()
     print("Training finished.")

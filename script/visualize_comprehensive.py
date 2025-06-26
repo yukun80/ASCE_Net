@@ -45,7 +45,7 @@ def find_corresponding_mat_file(sar_path):
 def visualize_parameter_maps(prediction_maps, title_prefix="Predicted"):
     """可视化5个参数通道"""
     param_names = ["Heatmap", "Amplitude (A)", "Alpha (α)", "X-offset (dx)", "Y-offset (dy)"]
-    colormaps = ["hot", "viridis", "RdBu_r", "RdBu_r", "RdBu_r"]
+    colormaps = ["hot", "viridis_r", "RdBu", "RdBu_r", "RdBu_r"]
 
     fig, axes = plt.subplots(1, 5, figsize=(25, 5))
     fig.suptitle(f"{title_prefix} Parameter Maps", fontsize=16)
@@ -220,7 +220,7 @@ def create_comprehensive_visualization(sample_info, model):
 
     # 第二行：5个参数图，但只用4个位置，将第5个放到下一行
     param_names = ["Heatmap", "Amplitude", "Alpha", "X-offset"]
-    colormaps = ["hot", "viridis", "RdBu_r", "RdBu_r"]
+    colormaps = ["hot", "viridis_r", "RdBu", "RdBu_r"]
 
     for i in range(4):
         ax = plt.subplot(4, 4, 5 + i)

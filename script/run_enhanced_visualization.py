@@ -406,7 +406,7 @@ def main():
     print(f"✓ 找到 {len(dataset.samples)} 个样本")
 
     # 处理样本
-    num_samples = min(200, len(dataset.samples))
+    num_samples = min(2000, len(dataset.samples))
     successful_samples = 0
 
     print(f"\n=== 开始处理 {num_samples} 个样本 ===")

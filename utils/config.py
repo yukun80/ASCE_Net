@@ -24,7 +24,7 @@ BATCH_SIZE = 8  # Reduced batch size for the larger model/labels
 LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-5
 NUM_EPOCHS = 200
-MODEL_NAME = "asc_net_v3_5param.pth"
+MODEL_NAME = "asc_net_v3_5param_epoch_020.pth"
 
 
 # --- Image and Model Physical Parameters ---

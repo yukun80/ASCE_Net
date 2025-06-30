@@ -328,7 +328,7 @@ def main():
     print(f"Found {len(dataset.samples)} samples to visualize.")
 
     # 选择要可视化的样本数量（避免生成过多图片）
-    max_samples = min(200, len(dataset.samples))
+    max_samples = min(1000, len(dataset.samples))
     selected_samples = dataset.samples[:max_samples]
 
     print(f"Processing {max_samples} samples for comprehensive visualization...")

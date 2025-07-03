@@ -25,7 +25,7 @@ close all;
 try
     [scriptFolder, ~, ~] = fileparts(mfilename('fullpath'));
     % 从脚本文件夹返回到项目根目录
-    projectRoot = fullfile(scriptFolder, '..', '..');
+    projectRoot = fullfile(scriptFolder, '..');
 catch
     % 如果在实时编辑器或无文件上下文的环境中运行，则使用当前工作目录
     projectRoot = pwd;

@@ -1,4 +1,13 @@
-#!/usr/bin/env python
+"""
+脚本用途: 定量指标计算诊断工具
+- 加载 ASC-Net 权重，对样本执行推理与散射中心提取。
+- 重建SAR图像并与原始/GT图像对比，计算多种误差与熵指标（RMSE、MSE、归一化MSE、对数域MSE、ENT）。
+- 生成包含原图/重建/差异/散射点/直方图/统计文本的诊断可视化 PNG。
+
+适用场景:
+- 当需要排查相关性、误差度量或可视化评估流程的问题时，快速定位与对比。
+"""
+
 # script/diagnose_metrics.py - 诊断定量指标计算问题
 
 import sys
@@ -16,6 +25,10 @@ from utils import config
 from utils.dataset import MSTAR_ASC_5CH_Dataset, read_sar_complex_tensor
 from utils.reconstruction import reconstruct_sar_image, pixel_to_model
 from script.quantitative_analysis import QuantitativeAnalyzer
+
+"""
+诊断类评估（同样会加载模型推理后统计度量）。
+"""
 
 
 class MetricsDiagnosis:

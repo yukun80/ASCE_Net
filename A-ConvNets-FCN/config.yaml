@@ -1,0 +1,22 @@
+project_root: ..
+data:
+  sar_root: datasets/SAR_ASC_Project/tmp_Data_Processed_raw
+  label_5ch_root: datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS
+  label_2ch_root: datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS_2ch
+  image_height: 128
+  image_width: 128
+training:
+  batch_size: 32
+  num_workers: 0
+  epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.0
+  device: auto
+  val_split: 0.2
+  save_dir: outputs/checkpoints
+  log_dir: outputs/logs
+model:
+  in_channels: 1
+  out_channels: 2
+  conv_kernel: 5
+  pooling_levels: 5

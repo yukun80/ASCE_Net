@@ -1,4 +1,14 @@
-# script/run_enhanced_visualization.py - Enhanced SAR Reconstruction Visualization with Correlation Analysis
+# script/run_enhanced_visualization.py
+"""
+脚本用途: 相关性评估与增强可视化
+- 加载 ASC-Net 模型，对样本推理并提取散射中心，进行SAR重建。
+- 依据论文方法计算零位移相关性与最大相关性，提供校正后的增强相关性指标。
+- 生成包含原图、GT重建、不同配置重建、相关性热力图和参数表的综合大图。
+
+适用场景:
+- 需要基于严格的相关性定义评估模型重建效果，并进行多配置对比与可视化输出。
+- 加载模型后进行相关性与指标评估（推理+度量）。
+"""
 
 import os
 import sys
@@ -10,6 +20,7 @@ from PIL import Image
 from scipy.ndimage import maximum_filter
 from skimage.feature import match_template
 import cv2
+
 
 # --- Setup Project Path ---
 current_dir = os.path.dirname(os.path.abspath(__file__))

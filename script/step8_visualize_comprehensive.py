@@ -1,3 +1,27 @@
+"""
+脚本用途: 综合可视化与分析（ASC‑Net）
+- 加载 ASC‑Net 训练权重，对数据集样本执行推理，提取散射中心并进行 SAR 重建。
+- 生成包含以下内容的综合可视化：
+  1) 原始 SAR 预览图
+  2) 真值(来自 .mat)重建 与 预测重建 的对比
+  3) 重建残差图 (GT - Pred)
+  4) 模型输出的 5 个参数通道图 (heatmap, A_log1p/alpha/dx/dy)
+  5) 原图叠加预测散射中心、参数分布散点、强度分布直方图
+- 批量处理样本并将结果 PNG 输出到 `datasets/result_vis/comprehensive_results/`，同时打印简要统计汇总。
+
+输入/配置:
+- 从 `utils.config` 读取数据与模型路径（`SAR_RAW_ROOT`, `ASC_MAT_ROOT`, `CHECKPOINT_DIR`, `MODEL_NAME` 等）。
+
+适用场景:
+- 需要一次性查看“推理→散射中心提取→重建→多视图可视化”的全流程效果与统计。
+
+使用示例:
+- 直接运行：`python script/visualize_comprehensive.py`
+
+设置数量：
+- max_samples = min(1000, len(dataset.samples))
+"""
+
 # script/visualize_comprehensive.py
 # 全面的ASCE_Net可视化脚本：包含重建对比和5参数预测可视化
 
@@ -25,6 +49,10 @@ from utils.reconstruction import (
 )
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+
+"""
+加载模型、对原始样本推理，并生成综合可视化与结果输出。
+"""
 
 
 def find_corresponding_jpg_file(sar_path):
@@ -328,7 +356,7 @@ def main():
     print(f"Found {len(dataset.samples)} samples to visualize.")
 
     # 选择要可视化的样本数量（避免生成过多图片）
-    max_samples = min(1000, len(dataset.samples))
+    max_samples = min(10, len(dataset.samples))
     selected_samples = dataset.samples[:max_samples]
 
     print(f"Processing {max_samples} samples for comprehensive visualization...")

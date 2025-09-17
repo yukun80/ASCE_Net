@@ -12,15 +12,14 @@ from scipy.ndimage import gaussian_filter
 from matplotlib.patches import Rectangle
 
 """
-单幅图像处理：
-python script/step5_visualize_label.py --input datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS/HB03406.017.npy
+脚本用途: 5通道标签可视化导出工具
+- 将 5 通道 ASC 标签 (heatmap, ln(1+A), α, dx, dy) 逐通道渲染为 PNG 图片并批量保存。
+- 对不同通道采用合适的色带/范围与轻度模糊（仅用于可视化）。
 
-批处理：
-python script/step5_visualize_label.py --root datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS
-
-自定义输出目录：
-python script/step5_visualize_label.py --root datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS --out datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS_Visuallse
-
+使用示例:
+- 单文件: python script/step5_visualize_label.py --input datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS/HB03406.017.npy
+- 批处理: python script/step5_visualize_label.py --root datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS
+- 自定义输出: python script/step5_visualize_label.py --root datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS --out datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS_Visuallse
 """
 
 # --- 动态添加项目根目录到Python路径 ---

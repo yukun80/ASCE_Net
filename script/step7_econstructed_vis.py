@@ -1,4 +1,14 @@
-# script/run_enhanced_visualization_fixed_layout.py - 修复布局问题版本
+"""
+脚本用途: 重建流程与可视化（修复布局版本）
+- 加载 ASC-Net 模型并推理，提取散射中心后进行SAR重建。
+- 以三种检测/增强配置生成重建与增强图像，采用更稳健的子图布局避免文本重叠。
+- 输出每个样本的对比可视化 PNG，并统计不同配置的检出数量。
+
+适用场景:
+- 需要批量产出清晰的重建对比图，重点展示配置差异但不做相关性计算。
+
+设置处理样本数量：num_samples = min(5, len(dataset.samples))
+"""
 
 import os
 import sys

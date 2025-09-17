@@ -2,7 +2,8 @@ import os
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
+
+# from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from utils import config
@@ -13,7 +14,7 @@ from model.asc_net import ASCNet_v3_5param  # Import the new model
 
 def main():
     # --- Setup ---
-    writer = SummaryWriter(log_dir=f"runs/{config.MODEL_NAME[:-4]}")
+    # writer = SummaryWriter(log_dir=f"runs/{config.MODEL_NAME[:-4]}")
     os.makedirs(config.CHECKPOINT_DIR, exist_ok=True)
 
     # --- Data ---
@@ -75,12 +76,12 @@ def main():
         print(f"Epoch {epoch+1} Average Loss: {avg_loss:.6f}")
 
         # --- Logging ---
-        writer.add_scalar("Loss/train_total", avg_loss, epoch)
-        writer.add_scalar("Loss/heatmap", h_loss.item(), epoch)
-        writer.add_scalar("Loss/amplitude", amp_loss.item(), epoch)
-        writer.add_scalar("Loss/alpha", alpha_loss.item(), epoch)
-        writer.add_scalar("Loss/offset", off_loss.item(), epoch)
-        writer.add_scalar("LearningRate", optimizer.param_groups[0]["lr"], epoch)
+        # writer.add_scalar("Loss/train_total", avg_loss, epoch)
+        # writer.add_scalar("Loss/heatmap", h_loss.item(), epoch)
+        # writer.add_scalar("Loss/amplitude", amp_loss.item(), epoch)
+        # writer.add_scalar("Loss/alpha", alpha_loss.item(), epoch)
+        # writer.add_scalar("Loss/offset", off_loss.item(), epoch)
+        # writer.add_scalar("LearningRate", optimizer.param_groups[0]["lr"], epoch)
 
         scheduler.step(avg_loss)
 
@@ -100,7 +101,7 @@ def main():
             torch.save(model.state_dict(), epoch_model_path)
             print(f"Periodic checkpoint saved to {config.CHECKPOINT_DIR}/{epoch_model_name}")
 
-    writer.close()
+    # writer.close()
     print("Training finished.")
 
 

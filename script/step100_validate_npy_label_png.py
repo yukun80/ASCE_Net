@@ -1,3 +1,13 @@
+"""
+脚本用途: 5通道标签验证与可视化
+- 读取单个样本的 SAR 预览图、对应的 .mat 标注与 5 通道 .npy 标签。
+- 从 .npy 中解码散射中心（基于 heatmap 峰与 dx/dy 亚像素偏移），并可与 .mat 中的GT散射中心对齐对比。
+- 生成对比可视化图：原图+叠加散射中心，以及 5 个通道的热力图，并保存 PNG。
+
+使用方法:
+- 在脚本底部修改 `basename` 与 `data_dir` 后直接运行，或改造为命令行参数。
+"""
+
 import numpy as np
 import scipy.io as sio
 import matplotlib.pyplot as plt

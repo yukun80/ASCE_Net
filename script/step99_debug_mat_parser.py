@@ -1,4 +1,13 @@
 #!/usr/bin/env python
+"""
+脚本用途: MAT 文件结构调试与解析修复
+- 探查 `scatter_all` 的真实层级/数组结构并打印关键信息。
+- 提供 `extract_scatterers_from_mat_fixed` 以按实际结构提取散射参数 (x, y, alpha, gamma, phi_prime, L, A)。
+- 可直接运行，对样例 MAT 文件进行解析与统计，并输出若干前几项参数。
+
+适用场景:
+- 当 MAT 文件层级嵌套复杂或不一致时，定位解析问题并验证修复逻辑。
+"""
 # script/debug_mat_parser.py - 调试MAT文件解析
 
 import sys

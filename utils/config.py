@@ -30,7 +30,6 @@ WEIGHT_DECAY = 1e-5
 NUM_EPOCHS = 200
 MODEL_NAME = "asc_net_v3_5param.pth"
 
-
 # --- Image and Model Physical Parameters ---
 IMG_HEIGHT = 128
 IMG_WIDTH = 128

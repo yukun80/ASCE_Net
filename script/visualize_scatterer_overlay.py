@@ -29,6 +29,10 @@ from utils.reconstruction import (
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
+"""
+加载模型推理，并将预测散射体叠加在图像上进行可视化。
+"""
+
 # --- 定义像素间距常量 ---
 IMG_HEIGHT = 128
 IMG_WIDTH = 128

@@ -1,3 +1,12 @@
+"""
+脚本用途: 坐标变换单元测试工具
+- 验证 `model_to_pixel` 与 `pixel_to_model` 两个方向的坐标变换是否一致可逆。
+- 打印典型点的正向/逆向转换结果与误差，并对图像中心点进行边界测试。
+
+适用场景:
+- 调试/确认物理坐标与像素坐标的转换公式、比例系数与中心定义是否正确。
+"""
+
 # debug_coordinate_transform.py
 import numpy as np
 

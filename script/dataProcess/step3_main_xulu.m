@@ -1,7 +1,33 @@
-%**xulu整理和重构
-% 从指定文件夹中批量读取【raw】数据，提取的属性散射中心保存在'03_Training_ASC'文件夹，
-% 根据属性散射中心重建的影像切片保存在'03_Training_ASC_reconstruct'文件夹
-% 脚本会自动遍历输入目录下的所有子文件夹，并保持目录结构不变。
+% =========================================================================
+% 脚本名称: step3_main_xulu.m
+% 功能概述: 批量读取输入目录中的.raw雷达成像数据，提取属性散射中心并保存；
+%           基于提取的散射中心进行图像重建，同时保存重建结果、差异图以及JPEG可视化。
+%
+% 输入目录:
+%   - project_root/02_Data_Processed_raw  (递归遍历其所有子目录下的 .raw 文件)
+%
+% 输出目录:
+%   - project_root/03_Training_ASC                 (保存散射中心 .mat，变量: scatter_all)
+%   - project_root/03_Training_ASC_reconstruct     (保存重建结果与差异 .mat，变量: s, diff)
+%   - project_root/03_Training_ASC_reconstruct_jpeg(保存重建结果 JPEG 可视化)
+%
+% 使用方法:
+%   - 在脚本中配置 project_root（见“用户配置”部分），确保输入/输出目录存在或可创建；
+%   - 直接运行脚本，程序将递归处理全部 .raw 文件并保持目录层级结构；
+%   - 处理进度与当前文件路径将输出到命令行窗口。
+%
+% 依赖函数:
+%   - image_read(raw_filepath) -> [fileimage, image_value]
+%   - extrac(fileimage, image_value) -> scatter_all
+%   - simulation(scatter_all) -> s
+%
+% 注意事项:
+%   - 本脚本会对输出目录按输入的相对路径自动创建子目录；
+%   - JPEG 保存前会对重建结果 s 进行 mat2gray 归一化；
+%   - 请确保依赖函数位于 MATLAB 搜索路径中；
+%   - 如需变更数据路径或导出格式，请修改“用户配置”区和相关保存语句。
+% =========================================================================
+
 clear;
 clc;
 close all;

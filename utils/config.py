@@ -1,6 +1,10 @@
 import os
 import torch
 
+"""
+tmp_路径是把所有类型的数据都统一放在一个文件夹下，方便进行可视化查看
+"""
+
 # --- File and Directory Paths ---
 # Get the project root directory
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

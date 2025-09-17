@@ -1,3 +1,39 @@
+"""
+脚本名称: step4_label_preprocess.py
+功能概述:
+  - 读取属性散射中心文件(“*_yang.mat”，变量名: scatter_all)，将散射参数投影到像素坐标，
+    生成 5 通道训练标签并保存为 .npy 文件，保持与输入目录一致的子目录结构。
+
+输入/输出:
+  - 输入根目录: config.ASC_MAT_ROOT
+    * 递归查找 "*_yang.mat"，其中 scatter_all 为 Matlab 元胞数组，每个元胞内为一个散射中心的参数向量
+  - 输出根目录: config.LABEL_SAVE_ROOT_5CH
+    * 保存形状为 (5, IMG_HEIGHT, IMG_WIDTH) 的 numpy 数组 .npy 文件
+
+标签定义(5 通道):
+  - 通道0: 热力图(高斯核叠加，表示散射中心位置的置信度)
+  - 通道1: ln(1 + A)  振幅回归值，放置于离散峰值像素处
+  - 通道2: alpha      相位/角度参数(按原值)，放置于离散峰值像素处
+  - 通道3: dx         亚像素横向偏移(列方向: col_f - round(col_f))
+  - 通道4: dy         亚像素纵向偏移(行方向: row_f - round(row_f))
+
+坐标转换:
+  - 使用 model_to_pixel(x_model, y_model) 将模型坐标映射为图像像素(row, col)
+  - 以 (IMG_WIDTH-1)/2, (IMG_HEIGHT-1)/2 为中心，比例系数由 P_GRID_SIZE 与图像尺寸确定
+
+依赖:
+  - numpy, scipy.io, tqdm
+  - 项目配置: utils.config 中的 IMG_WIDTH, IMG_HEIGHT, P_GRID_SIZE, ASC_MAT_ROOT, LABEL_SAVE_ROOT_5CH
+
+用法:
+  - 配置好 utils/config.py 后，直接运行本脚本:
+      python script/step4_label_preprocess.py
+
+注意:
+  - 会自动创建输出子目录；空的 .mat 或异常文件将被跳过并给出警告
+  - 高斯核默认 7x7, sigma=1，可视需要在代码中调整
+"""
+
 # script/step4_label_preprocess.py (重构版)
 
 import os

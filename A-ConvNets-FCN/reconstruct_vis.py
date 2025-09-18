@@ -15,6 +15,8 @@ Usage:
     [--save-dir A-ConvNets-FCN/outputs/recon_vis]
     
 python A-ConvNets-FCN/reconstruct_vis.py --config config.yaml --checkpoint A-ConvNets-FCN/outputs/checkpoints/aconv_fcn_best.pt --raw datasets/SAR_ASC_Project/tmp_Data_Processed_raw --topk 5 --amp-thr 0.0 --save-dir A-ConvNets-FCN/outputs/recon_vis
+
+python A-ConvNets-FCN/reconstruct_vis.py --config config.yaml --checkpoint A-ConvNets-FCN/outputs/checkpoints/aconv_fcn_best.pt --raw datasets/SAR_ASC_Project/tmp_Data_Processed_raw --topk 80 --nms-window 5 --amp-pctl 99.5 --amp-pctl-scale 1.0 --save-dir A-ConvNets-FCN/outputs/recon_vis
 """
 
 import os
@@ -45,7 +47,7 @@ if str(MODULE_ROOT) not in sys.path:
 from dataset import read_sar_complex_tensor  # noqa: E402
 from model import AConvFCN  # noqa: E402
 from utils.io import ensure_dir, load_config  # noqa: E402
-from utils.peaks import topk_peaks  # noqa: E402
+from utils.peaks import nms_topk_peaks  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -64,6 +66,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default="auto", help="cuda|cpu|auto")
     parser.add_argument("--topk", type=int, default=5, help="Top-K peaks from amplitude map for reconstruction")
     parser.add_argument("--amp-thr", type=float, default=0.0, help="Amplitude threshold for peak selection")
+    parser.add_argument("--nms-window", type=int, default=5, help="2D NMS window size (odd integer, >=3)")
+    parser.add_argument(
+        "--amp-pctl",
+        type=float,
+        default=99.5,
+        help="Adaptive threshold percentile for A map when --amp-thr<=0",
+    )
+    parser.add_argument(
+        "--amp-pctl-scale",
+        type=float,
+        default=1.0,
+        help="Scale factor applied to percentile threshold",
+    )
     parser.add_argument(
         "--save-dir",
         default=str(MODULE_ROOT / "outputs/recon_vis"),
@@ -160,19 +175,56 @@ def detect_scatterers(
     topk: int,
     amp_thr: float,
     pixel_to_model_fn,
-) -> List[Dict[str, float]]:
-    """Select peaks from amplitude map and produce scatterers for reconstruction."""
-    peaks: List[Tuple[int, int, float]] = topk_peaks(amp_map, k=topk, threshold=amp_thr)
+    nms_window: int,
+    amp_percentile: float,
+    amp_scale: float,
+) -> Tuple[List[Dict[str, float]], List[Tuple[int, int, float]]]:
+    """Select peaks from amplitude map and produce scatterers for reconstruction.
+
+    Returns (scatterers, peaks_for_plot)
+    """
+    peaks: List[Tuple[int, int, float]] = nms_topk_peaks(
+        amp_map,
+        k=topk,
+        threshold=amp_thr,
+        window_size=nms_window,
+        percentile=amp_percentile,
+        scale=amp_scale,
+    )
     scatterers: List[Dict[str, float]] = []
-    width = amp_map.shape[1]
+    peaks_plot: List[Tuple[int, int, float]] = []
+
+    # Sub-pixel refinement using 3x3 weighted centroid
+    amp_np = amp_map.detach().cpu().numpy()
+    alpha_np = alpha_map.detach().cpu().numpy()
 
     for row, col, _val in peaks:
         row_i = int(row)
         col_i = int(col)
+        # refine on 3x3 patch around (row_i, col_i)
+        h, w = amp_np.shape
+        r0 = max(1, min(h - 2, row_i))
+        c0 = max(1, min(w - 2, col_i))
+        patch = amp_np[r0 - 1 : r0 + 2, c0 - 1 : c0 + 2]
+        ys, xs = np.mgrid[-1:2, -1:2]
+        wsum = patch.sum()
+        if wsum > 0:
+            dy = float((ys * patch).sum() / wsum)
+            dx = float((xs * patch).sum() / wsum)
+            dy = max(-1.0, min(1.0, dy))
+            dx = max(-1.0, min(1.0, dx))
+            r_sub = float(r0 + dy)
+            c_sub = float(c0 + dx)
+        else:
+            r_sub = float(r0)
+            c_sub = float(c0)
+
         # physical coordinates
-        x, y = pixel_to_model_fn(row_i, col_i)
-        A_val = float(amp_map[row_i, col_i].item())
-        alpha_val = float(alpha_map[row_i, col_i].item())
+        x, y = pixel_to_model_fn(r_sub, c_sub)
+        rr = int(round(r_sub))
+        cc = int(round(c_sub))
+        A_val = float(amp_np[rr, cc])
+        alpha_val = float(alpha_np[rr, cc])
         scatterers.append(
             {
                 "A": A_val,
@@ -182,12 +234,13 @@ def detect_scatterers(
                 "gamma": 0.0,
                 "L": 0.0,
                 "phi_prime": 0.0,
-                "pixel_row": row_i,
-                "pixel_col": col_i,
+                "pixel_row": rr,
+                "pixel_col": cc,
             }
         )
+        peaks_plot.append((rr, cc, A_val))
 
-    return scatterers
+    return scatterers, peaks_plot
 
 
 def visualize_and_save(
@@ -279,14 +332,22 @@ def main() -> None:
             alpha_map_t = pred[1]
 
             # Detect peaks and build scatterers
-            scatterers = detect_scatterers(amp_map_t, alpha_map_t, args.topk, args.amp_thr, pixel_to_model)
+            scatterers, peaks = detect_scatterers(
+                amp_map_t,
+                alpha_map_t,
+                args.topk,
+                args.amp_thr,
+                pixel_to_model,
+                args.nms_window,
+                args.amp_pctl,
+                args.amp_pctl_scale,
+            )
 
             # Reconstruct
             recon_complex = reconstruct_sar_image(scatterers)
             recon_mag = np.abs(recon_complex)
 
-            # Visualization
-            peaks = topk_peaks(amp_map_t, k=args.topk, threshold=args.amp_thr)
+            # Visualization uses refined peak positions
             visualize_and_save(
                 save_dir,
                 base,

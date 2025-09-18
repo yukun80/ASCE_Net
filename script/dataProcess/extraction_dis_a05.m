@@ -1,5 +1,5 @@
-function z=extraction_dis_a05(m); %%%%%%%%%fcÊÇÖÐÐÄÆµÂÊ£¬BÊÇ´ø¿í£¬omÊÇ¹Û²â½Ç
- %%%%%%%%%%%%%%ÀûÓÃ¸ø¶¨µÄÄ£ÐÍºÍ¹À¼ÆµÄ²ÎÊý³ÉÏñ,ËùÓÃµÄÄ£ÐÍÊÇÖ±½ÇÆµÂÊÓòÏÂµÄÄ£ÐÍ¡£Êä³öÊÇÆµÓò¼Ó´°²¹ÁãÖ®ºóµÄ¾ØÕó%%%%%%%%%%%%%
+function z=extraction_dis_a05(m); %%%%%%%%%fcï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æµï¿½Ê£ï¿½Bï¿½Ç´ï¿½ï¿½ï¿½ï¿½ï¿½omï¿½Ç¹Û²ï¿½ï¿½
+ %%%%%%%%%%%%%%ï¿½ï¿½ï¿½Ã¸ï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ÍºÍ¹ï¿½ï¿½ÆµÄ²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½ï¿½ï¿½Ãµï¿½Ä£ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ï¿½Æµï¿½ï¿½ï¿½ï¿½ï¿½Âµï¿½Ä£ï¿½Í¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æµï¿½ï¿½Ó´ï¿½ï¿½ï¿½ï¿½ï¿½Ö®ï¿½ï¿½Ä¾ï¿½ï¿½ï¿½%%%%%%%%%%%%%
 
  
 x=m(1);
@@ -18,15 +18,18 @@ a=0.5;
     B=5e8;
     om=2.86;
  
-   om=om*2*pi/360;         %%%%%%%%%%%%%%½«½Ç¶È»¯Îª»¡¶È
+   om=om*2*pi/360;         %%%%%%%%%%%%%%ï¿½ï¿½ï¿½Ç¶È»ï¿½Îªï¿½ï¿½ï¿½ï¿½
     b=B/fc;
     fx1=(1-b/2)*fc;
     fx2=(1+b/2)*fc;
     fy1=-fc*sin(om/2);
-    fy2=fc*sin(om/2);      %%%%%%%%%%%%%%Ö±½Ç×ø±êÏµÏÂÁ½ÖáµÄÈ¡Öµ·¶Î§
+    fy2=fc*sin(om/2);      %%%%%%%%%%%%%%Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¡Öµï¿½ï¿½Î§
  
-    p=84;
-    q=128;
+    % è‡ªé€‚åº”ï¼šæŒ‰å½“å‰å›¾å°ºå¯¸æ¯”ä¾‹è®¾å®š pï¼ŒZ ä¸Žå›¾å°ºå¯¸ä¸€è‡´
+    global complex_temp;
+    [q_rows, q_cols] = size(complex_temp);
+    q = q_rows;
+    p = max(4, round(84 * min(q_rows, q_cols) / 128));
 
 
  
@@ -41,7 +44,7 @@ a=0.5;
     end
        
     K=reshape(K,p,p);
-    K=flipud(K);       %%%%%%%%%%%%%%%%%%%%µÃµ½Ö±½Ç×ø±êÏµÏÂµÄ¾ØÕó
+    K=flipud(K);       %%%%%%%%%%%%%%%%%%%%ï¿½Ãµï¿½Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ÂµÄ¾ï¿½ï¿½ï¿½
  
    T=taylorwin(p,3,-35);
 
@@ -52,14 +55,13 @@ a=0.5;
            K(j,:)=K(j,:).*T';
        end
 
- %%%%%%%%%%¼ÓººÄþ´°
+ %%%%%%%%%%ï¿½Óºï¿½ï¿½ï¿½ï¿½ï¿½
  
 
-   Z=zeros(q,q);
+   Z=zeros(q_rows,q_cols);
 %    Z(1+(q-p)/2:p+(q-p)/2,1+(q-p)/2:p+(q-p)/2)=K;
    Z(1:p,1:p)=K;
 
-   global complex_temp;
    global image_interest;
 
    Z=ifft2(Z);
@@ -83,14 +85,14 @@ a=0.5;
 % Z=ifftshift(Z);
 % Z=abs(Z);
 % imshow(Z);
-% xlabel('¾àÀëÏò');
-% ylabel('·½Î»Ïò');
+% xlabel('ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½');
+% ylabel('ï¿½ï¿½Î»ï¿½ï¿½');
 
 
 
 
 
-%%%%%%%%%%%%%%²¹Áã²¢³ÉÏñ
+%%%%%%%%%%%%%%ï¿½ï¿½ï¿½ã²¢ï¿½ï¿½ï¿½ï¿½
 
 
 %m=fx1:B/(p-1):fx2;

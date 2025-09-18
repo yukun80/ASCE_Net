@@ -17,10 +17,11 @@ function create_R1_for_image_read(input_mat_file, output_basename)
     amplitude = data.Img;
     phase = data.phase;
     
-    % Verify dimensions
+    % Verify dimensions (allow arbitrary size as long as they match)
     [rows, cols] = size(amplitude);
-    if ~isequal(size(amplitude), size(phase)) || rows ~= 128 || cols ~= 128
-        error('Img and Phase must be 128x128 matrices.');
+    if ~isequal(size(amplitude), size(phase))
+        error('Img and Phase must have the same size. Got Img %dx%d and phase %dx%d.', ...
+              rows, cols, size(phase,1), size(phase,2));
     end
     
     % Flatten amplitude and phase to 1D arrays

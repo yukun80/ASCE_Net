@@ -1,4 +1,4 @@
-function  K=simulation(T);
+function  K=simulation(T, q_rows, q_cols)
 
 fc=1e10;
 B=5e8;
@@ -6,7 +6,15 @@ om=2.86;
 
  
  p=84;
- q=128;
+ % åŠ¨æ€è¾“å‡ºå°ºå¯¸ï¼Œé»˜è®¤æ­£æ–¹å½¢æ—¶ä½¿ç”¨ q_rows
+ if nargin < 2 || isempty(q_rows)
+     q_rows = 128;
+ end
+ if nargin < 3 || isempty(q_cols)
+     q_cols = q_rows;
+ end
+ % é¢‘åŸŸç½‘æ ¼ç»´æŒä¸ 128 çš„æ¯”ä¾‹ï¼šp = round(84 * min(q_rows,q_cols) / 128)
+ p = round(84 * min(q_rows, q_cols) / 128);
 
 
 scat=size(T);
@@ -17,8 +25,8 @@ scat=scat(1,1);
 
  
   
- K=zeros(q,q);
- K_temp=zeros(q,q);
+ K=zeros(q_rows,q_cols);
+ K_temp=zeros(q_rows,q_cols);
  i=1;
  s=0;
  for j=1:scat
@@ -30,13 +38,13 @@ scat=scat(1,1);
      o_o=W(1,5);
      L=W(1,6);
      A=W(1,7);
-     [K_temp,s_temp]=spotlight(fc,B,om,x,y,a,r,o_o,L,A);
+     [K_temp,s_temp]=spotlight(fc,B,om,x,y,a,r,o_o,L,A, p, q_rows, q_cols);
      K=K+K_temp;
-     K_temp=zeros(q,q);
+     K_temp=zeros(q_rows,q_cols);
      s=s+s_temp;
  end
 
-%%%%%¼Ó¸ßË¹°×ÔëÉù%%%%%%%%
+%%%%%ï¿½Ó¸ï¿½Ë¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½%%%%%%%%
 
 
 % K_freq=wgn(q,q,s_freq);
@@ -46,8 +54,8 @@ scat=scat(1,1);
 
 K=ifft2(K);
 K=ifftshift(K);
-K_complex=K;      %%%%%%%% K_complex±£´æµÄÊÇÍ¼Ïó¸´Êı¾İ %%%%%%%%%
+K_complex=K;      %%%%%%%% K_complexï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ %%%%%%%%%
 K=abs(K);
 % imshow(K);
-xlabel('¾àÀëÏò');
-ylabel('·½Î»Ïò');
+xlabel('ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½');
+ylabel('ï¿½ï¿½Î»ï¿½ï¿½');

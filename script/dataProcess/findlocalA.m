@@ -9,18 +9,22 @@ function A=findlocalA(image,x,y,a,r,o_o,L);
  B=5e8;
  om=2.86;
  p=84;
- q=128;
  
- om=om*2*pi/360;         %%%%%%%%%%%%%%½«½Ç¶È»¯Îª»¡¶È
+ om=om*2*pi/360;         %%%%%%%%%%%%%%ï¿½ï¿½ï¿½Ç¶È»ï¿½Îªï¿½ï¿½ï¿½ï¿½
  b=B/fc;
  fx1=(1-b/2)*fc;
  fx2=(1+b/2)*fc;
  fy1=-fc*sin(om/2);
- fy2=fc*sin(om/2);      %%%%%%%%%%%%%%Ö±½Ç×ø±êÏµÏÂÁ½ÖáµÄÈ¡Öµ·¶Î§
+ fy2=fc*sin(om/2);      %%%%%%%%%%%%%%Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¡Öµï¿½ï¿½Î§
  
+ % è‡ªé€‚åº”ï¼šåœ¨æ„å»º K å‰æŒ‰å½“å‰ ROI å°ºå¯¸æŒ‰æ¯”ä¾‹è®¾å®š p
+   global image_interest;
+   global complex_temp;
+   [q_rows, q_cols] = size(image_interest);
+   p = max(4, round(84 * min(q_rows, q_cols) / 128));
 
  
-    K=zeros(1,p*p);
+   K=zeros(1,p*p);
     i=1;
     s=0;
     for fx=fx1:B/(p-1):fx2
@@ -32,7 +36,7 @@ function A=findlocalA(image,x,y,a,r,o_o,L);
    
        
     K=reshape(K,p,p);
-    K=flipud(K);       %%%%%%%%%%%%%%%%%%%%µÃµ½Ö±½Ç×ø±êÏµÏÂµÄ¾ØÕó
+    K=flipud(K);       %%%%%%%%%%%%%%%%%%%%ï¿½Ãµï¿½Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ÂµÄ¾ï¿½ï¿½ï¿½
  
    T=taylorwin(p,3,-35);
 
@@ -46,22 +50,20 @@ function A=findlocalA(image,x,y,a,r,o_o,L);
           K(j,:)=K(j,:).*T';
        end
 
- %%%%%%%%%%¼ÓººÄş´°
+ %%%%%%%%%%ï¿½Óºï¿½ï¿½ï¿½ï¿½ï¿½
  
-
-   Z=zeros(q,q);
+ 
+   % å°ºå¯¸è‡ªé€‚åº”ï¼šä½¿ Z ä¸ image_interest åŒå°ºå¯¸
+   Z=zeros(q_rows,q_cols);
 %    Z(1+(q-p)/2:p+(q-p)/2,1+(q-p)/2:p+(q-p)/2)=K;
    Z(1:p,1:p)=K;
-
-   global image_interest;
-   global complex_temp;
    
    Z=ifft2(Z);
    Z=ifftshift(Z);
    Z=Z.*image_interest;
    Z=abs(Z);
-   image=reshape(image,q*q,1);
-   Z=reshape(Z,q*q,1);
+   image=reshape(image,q_rows*q_cols,1);
+   Z=reshape(Z,q_rows*q_cols,1);
     A=Z\image;
 
 %     A=(Z'*image)/(Z'*Z);

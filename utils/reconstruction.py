@@ -7,14 +7,16 @@ from utils import config
 
 def pixel_to_model(row, col):
     """
-    The EXACT inverse of the model_to_pixel function.
-    Converts integer pixel coordinates back to continuous physical model coordinates.
+    Convert pixel (row, col) to physical model coordinates (x, y).
+
+    Use exact center at (H-1)/2, (W-1)/2 to match label generation scripts.
     """
     C1 = config.IMG_HEIGHT / (0.3 * config.P_GRID_SIZE)
-    C2 = config.IMG_WIDTH / 2  # 64.0, This is correct for a 0-indexed system
+    C2_y = (config.IMG_HEIGHT - 1) / 2.0
+    C2_x = (config.IMG_WIDTH - 1) / 2.0
 
-    y_model = (C2 - row) / C1
-    x_model = (col - C2) / C1
+    y_model = (C2_y - float(row)) / C1
+    x_model = (float(col) - C2_x) / C1
     return x_model, y_model
 
 

@@ -22,7 +22,7 @@ def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
 
     project_root = _resolve_path(MODULE_ROOT, config.get("project_root", ".."))
     data_cfg = config.get("data", {})
-    for key in ["sar_root", "label_5ch_root", "label_2ch_root"]:
+    for key in ["sar_root", "label_5ch_root", "label_2ch_root", "mat_root"]:
         if key in data_cfg:
             data_cfg[key] = str(_resolve_path(project_root, data_cfg[key]))
     config["data"] = data_cfg

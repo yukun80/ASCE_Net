@@ -18,9 +18,10 @@ def pixel_to_model(row: int, col: int, img_height: int = 128, img_width: int = 1
     This mirrors utils.reconstruction.pixel_to_model with configurable constants.
     """
     C1 = img_height / (0.3 * p_grid_size)
-    C2 = img_width / 2.0
-    y_model = (C2 - float(row)) / C1
-    x_model = (float(col) - C2) / C1
+    C2_y = (img_height - 1) / 2.0
+    C2_x = (img_width - 1) / 2.0
+    y_model = (C2_y - float(row)) / C1
+    x_model = (float(col) - C2_x) / C1
     return x_model, y_model
 
 

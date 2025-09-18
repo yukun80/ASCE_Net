@@ -27,9 +27,9 @@ catch
 end
 
 % 设置源路径和目标路径
-input_dir = fullfile(projectRoot, 'datasets', 'SAR_ASC_Project', '01_Data_Processed_mat');
-output_dir_raw = fullfile(projectRoot, 'datasets', 'SAR_ASC_Project', '02_Data_Processed_raw');
-output_dir_jpg = fullfile(projectRoot, 'datasets', 'SAR_ASC_Project', '02_Data_Processed_jpg_tmp');
+input_dir = fullfile(projectRoot, 'datasets', 'SAR_ASC_constract', '01_Data_Processed_mat');
+output_dir_raw = fullfile(projectRoot, 'datasets', 'SAR_ASC_constract', '02_Data_Processed_raw');
+output_dir_jpg = fullfile(projectRoot, 'datasets', 'SAR_ASC_constract', '02_Data_Processed_jpg_tmp');
 
 
 % --- 主执行逻辑 ---
@@ -97,12 +97,20 @@ function process_directory(current_source_path, current_raw_path, current_jpg_pa
             
             % --- 步骤 1: 将 .mat 转换为 .raw ---
             output_base_path_raw = fullfile(current_raw_path, output_basename);
+            % 先读取 Img 尺寸以构造对应的 RAW 文件名
+            try
+                tmp_info = load(source_item_path, 'Img');
+                [rows, cols] = size(tmp_info.Img);
+                raw_file_name = sprintf('%s.%dx%d.raw', output_base_path_raw, cols, rows);
+            catch ME
+                warning('  -> 读取 Img 尺寸失败: %s', ME.message);
+                raw_file_name = '';
+            end
             create_R1_for_image_read(source_item_path, output_base_path_raw);
             
             % --- 步骤 2: 创建 JPG 预览 ---
-            raw_file_name = [output_base_path_raw, '.128x128.raw'];
             
-            if isfile(raw_file_name)
+            if ~isempty(raw_file_name) && isfile(raw_file_name)
                 [fileimage, ~] = image_read(raw_file_name);
                 
                 % 定义输出 JPG 文件的路径

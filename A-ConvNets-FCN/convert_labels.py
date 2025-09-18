@@ -4,93 +4,159 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import scipy.io as sio
 
 MODULE_ROOT = Path(__file__).resolve().parent
 if str(MODULE_ROOT) not in sys.path:
     sys.path.insert(0, str(MODULE_ROOT))
 
-from dataset import five_to_two  # noqa: E402
 from utils.io import ensure_dir, load_config  # noqa: E402
 
 """
 功能
 ----
-将 ASC 数据集中的 5 通道标签 (5-ch) 批量转换为 2 通道标签 (2-ch)，
-以便 A-ConvNets-FCN 模型使用。转换逻辑由 `dataset.five_to_two` 提供。
+从原始 `*_yang.mat`（变量 `scatter_all`）直接生成符合 A-ConvNets-FCN 模型训练需求的 2 通道标签：
+- 通道0: 线性幅度 A（仅在离散散射像素处为正，其余为 0）
+- 通道1: alpha（仅在离散散射像素处为值，其余为 0）
+
+与旧流程（5ch→2ch）不同，本脚本直接从原始参数生成，避免中间换算误差和坐标偏差。
 
 输入/输出
 --------
-- 输入根目录: 在配置文件 `config.yaml` 的 `data.label_5ch_root` 指定；
-  程序会递归遍历其下的所有 `.npy` 文件作为 5-ch 标签输入。
-- 输出根目录: 在配置文件 `config.yaml` 的 `data.label_2ch_root` 指定；
-  程序将按与输入相同的子目录结构，将对应的 2-ch 标签以 `.npy` 保存。
+- MAT 根目录：默认取项目 `utils.config.ASC_MAT_ROOT`，也可通过 `--mat-root` 指定
+- 输出根目录：`config.yaml:data.label_2ch_root`
 
-行为说明
+坐标转换
 --------
-- 对每个 `.npy` 文件:
-  1) 加载为 NumPy 数组；
-  2) 调用 `five_to_two(label_5ch)` 完成 5→2 通道映射；
-  3) 将结果保存到输出目录（若已存在将被覆盖）。
-- 若 `five_to_two` 由于数据格式不符合预期而抛出 `ValueError`，该样本会被跳过并计数。
-- 运行结束后，会打印“已转换/已跳过”的文件数量统计。
-
-配置项
-------
-- `data.label_5ch_root`: 5 通道标签的根目录（递归处理）。
-- `data.label_2ch_root`: 2 通道标签的输出根目录（自动创建子目录）。
-
-使用示例
---------
-命令行:
-  python convert_labels.py --config config.yaml
-
-或在项目根目录中（示例路径按实际调整）:
-  python A-ConvNets-FCN/convert_labels.py --config config.yaml
-
-备注
-----
-- 本脚本仅负责批量 IO 与流程控制；具体的通道语义与形状要求由
-  `dataset.five_to_two` 决定，请确保输入标签满足其预期格式。
+- 使用与训练/可视化一致的中心定义：y 轴以 H/2 为中心、x 轴以 W/2 为中心
+- row = (H-1)/2 - y*C1, col = x*C1 + (W-1)/2, 其中 C1 = H / (0.3 * P_GRID_SIZE)
+ python A-ConvNets-FCN/convert_labels.py --config config.yaml
 """
 
 
-def convert_labels(config_path: str) -> None:
+def model_to_pixel(x_model: float, y_model: float, height: int, width: int, p_grid_size: int) -> tuple[int, int]:
+    C1 = height / (0.3 * p_grid_size)
+    c_row = (height - 1) / 2.0
+    c_col = (width - 1) / 2.0
+    row_f = c_row - (y_model * C1)
+    col_f = c_col + (x_model * C1)
+    return int(round(row_f)), int(round(col_f))
+
+
+def read_scatterers_from_mat(mat_path: Path) -> np.ndarray:
+    """Load scatterers from *_yang.mat, return Nx7 array [x,y,alpha,gamma,phi_prime,L,A]."""
+    data = sio.loadmat(mat_path)
+    cell = data.get("scatter_all")
+    if cell is None or cell.size == 0:
+        return np.empty((0, 7), dtype=np.float32)
+    try:
+        arr = np.vstack([c[0] for c in cell])
+    except Exception:
+        # Fallback: sometimes nested differently
+        items = []
+        for c in cell:
+            v = c[0] if isinstance(c, np.ndarray) else c
+            v = np.array(v).reshape(-1)
+            if v.size >= 7:
+                items.append(v[:7])
+        arr = np.vstack(items) if items else np.empty((0, 7), dtype=np.float32)
+    return arr.astype(np.float32, copy=False)
+
+
+def _import_project_config_by_path(project_root: Path):
+    """Import project-level utils/config.py by absolute path to avoid name collisions.
+
+    Returns a module object exposing IMG_HEIGHT, IMG_WIDTH, P_GRID_SIZE, ASC_MAT_ROOT.
+    """
+    import importlib.util
+
+    cfg_path = project_root / "utils" / "config.py"
+    if not cfg_path.exists():
+        raise FileNotFoundError(f"project utils/config.py not found at {cfg_path}")
+    spec = importlib.util.spec_from_file_location("project_utils_config", str(cfg_path))
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Failed to create module spec for project utils.config")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def convert_from_mat_to_2ch(config_path: str, mat_root_override: str | None = None) -> None:
     cfg = load_config(config_path)
-    data_cfg = cfg["data"]
-    label_5ch_root = Path(data_cfg["label_5ch_root"])
-    label_2ch_root = Path(data_cfg["label_2ch_root"])
+    data_cfg = cfg.get("data", {})
+    label_2ch_root = Path(str(data_cfg.get("label_2ch_root", "")))
     ensure_dir(str(label_2ch_root))
+
+    # Import project-level numeric constants by absolute path to avoid utils package collision
+    project_root = Path(cfg["project_root"]).resolve()
+    try:
+        prj_config = _import_project_config_by_path(project_root)
+    except Exception as exc:
+        raise RuntimeError(f"Failed to import project utils.config by path: {exc}")
+
+    height = int(getattr(prj_config, "IMG_HEIGHT", int(data_cfg.get("image_height", 128))))
+    width = int(getattr(prj_config, "IMG_WIDTH", int(data_cfg.get("image_width", 128))))
+    p_grid_size = int(getattr(prj_config, "P_GRID_SIZE", 84))
+
+    # Resolve MAT root
+    default_mat_root = Path(getattr(prj_config, "ASC_MAT_ROOT", ""))
+    mat_root = Path(mat_root_override) if mat_root_override else default_mat_root
+    if not mat_root.is_absolute():
+        mat_root = (project_root / mat_root).resolve()
+    if not mat_root.exists():
+        raise FileNotFoundError(f"MAT root does not exist: {mat_root}")
+
+    print(f"MAT root resolved to: {mat_root}")
 
     converted = 0
     skipped = 0
+    scanned = 0
 
-    for dirpath, _, filenames in os.walk(label_5ch_root):
+    for dirpath, _, filenames in os.walk(mat_root):
         for filename in filenames:
-            if not filename.endswith(".npy"):
+            if not filename.lower().endswith(".mat"):
                 continue
-            src_path = Path(dirpath) / filename
-            rel_dir = Path(dirpath).relative_to(label_5ch_root)
-            dst_dir = label_2ch_root / rel_dir
-            ensure_dir(str(dst_dir))
-            dst_path = dst_dir / filename
-
-            label_5ch = np.load(src_path)
+            mat_path = Path(dirpath) / filename
             try:
-                label_2ch = five_to_two(label_5ch)
-            except ValueError:
-                skipped += 1
-                continue
-            np.save(dst_path, label_2ch)
-            converted += 1
+                scat = read_scatterers_from_mat(mat_path)
+                scanned += 1
+                if scat.shape[0] == 0:
+                    skipped += 1
+                    # Verbose hint for troubleshooting
+                    print(f"[INFO] No scatterers found in {mat_path.name} (missing 'scatter_all' or empty).")
+                    continue
 
-    print(f"Converted {converted} label files. Skipped {skipped} files.")
+                label = np.zeros((2, height, width), dtype=np.float32)
+
+                for row in scat:
+                    x_m, y_m, alpha, A = float(row[0]), float(row[1]), float(row[2]), float(row[6])
+                    r, c = model_to_pixel(x_m, y_m, height, width, p_grid_size)
+                    if 0 <= r < height and 0 <= c < width:
+                        # Keep the stronger scatterer if collisions happen at the same pixel
+                        if A > label[0, r, c]:
+                            label[0, r, c] = A
+                            label[1, r, c] = alpha
+
+                rel_dir = Path(dirpath).relative_to(mat_root)
+                out_dir = Path(ensure_dir(str(label_2ch_root / rel_dir)))
+                out_path = out_dir / (filename.replace("_yang.mat", ".npy"))
+                np.save(out_path, label)
+                converted += 1
+            except Exception as exc:
+                print(f"[WARN] Failed to convert {mat_path}: {exc}")
+                skipped += 1
+
+    print(
+        f"Scanned {scanned} .mat files under {mat_root}. Converted {converted}, Skipped {skipped}.\nOutput root: {label_2ch_root}"
+    )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Convert 5-channel ASC labels to 2-channel (A, alpha).")
+    parser = argparse.ArgumentParser(description="Generate 2-ch labels (A, alpha) directly from *_yang.mat")
     parser.add_argument("--config", default="config.yaml", help="Path to config.yaml")
+    parser.add_argument("--mat-root", default=None, help="Override MAT root directory (optional)")
     args = parser.parse_args()
-    convert_labels(args.config)
+    convert_from_mat_to_2ch(args.config, args.mat_root)
 
 
 if __name__ == "__main__":

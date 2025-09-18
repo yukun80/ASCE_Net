@@ -34,7 +34,7 @@ close all;
 
 % --- 用户配置 ---
 % 定义根目录，方便切换整个项目的位置
-project_root = 'E:\Document\paper_library\3rd_paper_250512\code\ASCE_Net\datasets\SAR_ASC_Project\';
+project_root = 'E:\Document\paper_library\3rd_paper_250512\code\ASCE_Net\datasets\SAR_ASC_constract\';
 
 % 输入目录：包含.raw文件的目录
 input_dir = fullfile(project_root, '02_Data_Processed_raw');
@@ -95,7 +95,8 @@ for i = 1:length(files)
     save(fullfile(current_output_asc_dir, asc_output_filename), 'scatter_all');
         
     % --- 3. 结果重建和保存 ---
-    s = simulation(scatter_all); % 图1：重建图
+    [h, w] = size(fileimage);
+    s = simulation(scatter_all, h, w); % 图1：重建图
     diff = fileimage - s;
     
     % 保存重建的切片和差异 (.mat格式)

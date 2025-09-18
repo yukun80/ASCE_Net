@@ -1,6 +1,7 @@
 project_root: ..
 data:
   sar_root: datasets/SAR_ASC_Project/tmp_Data_Processed_raw
+  mat_root: datasets/SAR_ASC_Project/tmp_Training_ASC
   label_5ch_root: datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS
   label_2ch_root: datasets/SAR_ASC_Project/tmp_MSTAR_ASC_LABELS_2ch
   image_height: 128

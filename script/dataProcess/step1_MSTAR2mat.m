@@ -25,7 +25,7 @@ close all;
 try
     [scriptFolder, ~, ~] = fileparts(mfilename('fullpath'));
     % 从脚本文件夹返回到项目根目录
-    projectRoot = fullfile(scriptFolder, '..');
+    projectRoot = fullfile(scriptFolder, '../..');
 catch
     % 如果在实时编辑器或无文件上下文的环境中运行，则使用当前工作目录
     projectRoot = pwd;
@@ -33,8 +33,8 @@ catch
 end
 
 % 设置源路径和目标路径
-sourceRoot = fullfile(projectRoot, 'datasets', 'SAR_ASC_Project', '00_Data_Raw');
-targetRoot = fullfile(projectRoot, 'datasets', 'SAR_ASC_Project', '01_Data_Processed_mat');
+sourceRoot = fullfile(projectRoot, 'datasets', 'SAR_ASC_constract', 'MSTAR_PUBLIC_MIXED_TARGETS_CD1');
+targetRoot = fullfile(projectRoot, 'datasets', 'SAR_ASC_constract', '01_Data_Processed_mat');
 
 % --- 主执行逻辑 ---
 fprintf('开始处理...\n');

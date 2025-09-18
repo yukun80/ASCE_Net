@@ -80,7 +80,8 @@ fprintf('=======================================================================
 fprintf('正在生成图像域对比图...\n');
 
 % 首先，根据提取的特征重建图像
-image_reconstructed = simulation(scatter_all);
+[h,w] = size(fileimage_original);
+image_reconstructed = simulation(scatter_all, h, w);
 
 % 创建一个新的figure窗口
 figure('Name', ['图像域结果对比 - ' filename_base], 'Position', [100, 300, 1400, 500]);
@@ -112,13 +113,14 @@ colorbar; % 显示色阶条，以观察差异的量级
 fprintf('正在生成频域对比图...\n');
 
 % --- 为获取精确频域重建，复用simulation的核心逻辑 ---
-fc=1e10; B=5e8; om=2.86; q=128;
-freq_reconstructed_complex = zeros(q,q);
+fc=1e10; B=5e8; om=2.86;
+[h2,w2] = size(fileimage_original);
+freq_reconstructed_complex = zeros(h2,w2);
 if ~isempty(scatter_all)
     for i = 1:length(scatter_all)
         params = scatter_all{i};
         % 调用spotlight函数生成每个散射中心的频域贡献
-        [K_temp, ~] = spotlight(fc,B,om,params(1),params(2),params(3),params(4),params(5),params(6),params(7));
+        [K_temp, ~] = spotlight(fc,B,om,params(1),params(2),params(3),params(4),params(5),params(6),params(7), 84, h2, w2);
         freq_reconstructed_complex = freq_reconstructed_complex + K_temp;
     end
 end

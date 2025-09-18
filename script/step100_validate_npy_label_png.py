@@ -8,6 +8,7 @@
 - 在脚本底部修改 `basename` 与 `data_dir` 后直接运行，或改造为命令行参数。
 """
 
+import os, glob
 import numpy as np
 import scipy.io as sio
 import matplotlib.pyplot as plt
@@ -137,10 +138,19 @@ def visualize_and_validate(basename, sar_jpg_path, asc_mat_path, label_npy_path)
 if __name__ == "__main__":
     basename = "HB03335.015"
     data_dir = r"E:\Document\paper_library\3rd_paper_250512\code\ASCE_Net\datasets\SAR_ASC_Project"
-    sar_jpg_path = os.path.join(
-        data_dir, "02_Data_Processed_jpg_tmp", "test_15_deg", "T72", "SN_132", f"{basename}_v1.jpg"
+    print(
+        "JPG:",
+        os.path.exists(
+            os.path.join(data_dir, "02_Data_Processed_jpg", "test_15_deg", "T72", "SN_132", f"{basename}_v1.jpg")
+        ),
     )
-    asc_mat_path = os.path.join(data_dir, "tmp_Training_ASC", f"{basename}_yang.mat")
-    label_npy_path = os.path.join(data_dir, "tmp_MSTAR_ASC_LABELS", f"{basename}_5ch.npy")
+    print("MAT:", os.path.exists(os.path.join(data_dir, "tmp_Training_ASC", f"{basename}.mat")))
+    print("NPY:", os.path.exists(os.path.join(data_dir, "tmp_MSTAR_ASC_LABELS", f"{basename}.npy")))
+    # Optional: locate a basename that exists
+    print("Some 5ch npy:", glob.glob(os.path.join(data_dir, "tmp_MSTAR_ASC_LABELS", "HB*.npy"))[:5])
+
+    sar_jpg_path = os.path.join(data_dir, "02_Data_Processed_jpg", "test_15_deg", "T72", "SN_132", f"{basename}_v1.jpg")
+    asc_mat_path = os.path.join(data_dir, "tmp_Training_ASC", f"{basename}.mat")
+    label_npy_path = os.path.join(data_dir, "tmp_MSTAR_ASC_LABELS", f"{basename}.npy")
 
     visualize_and_validate(basename, sar_jpg_path, asc_mat_path, label_npy_path)

@@ -8,15 +8,19 @@ function a=finda(image,A,x,y,r,o_o,L);
  B=5e8;
  om=2.86;
  p=84;
- q=128;
  
- om=om*2*pi/360;         %%%%%%%%%%%%%%½«½Ç¶È»¯Îª»¡¶È
+ om=om*2*pi/360;         %%%%%%%%%%%%%%ï¿½ï¿½ï¿½Ç¶È»ï¿½Îªï¿½ï¿½ï¿½ï¿½
  b=B/fc;
  fx1=(1-b/2)*fc;
  fx2=(1+b/2)*fc;
  fy1=-fc*sin(om/2);
- fy2=fc*sin(om/2);      %%%%%%%%%%%%%%Ö±½Ç×ø±êÏµÏÂÁ½ÖáµÄÈ¡Öµ·¶Î§
+ fy2=fc*sin(om/2);      %%%%%%%%%%%%%%Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¡Öµï¿½ï¿½Î§
  
+
+% åœ¨æ„å»º K ä¹‹å‰ç¡®å®š pï¼ˆæŒ‰å½“å‰ ROI å°ºå¯¸æ¯”ä¾‹ç¼©æ”¾ï¼‰
+global image_interest;
+[q_rows, q_cols] = size(image_interest);
+p = max(4, round(84 * min(q_rows, q_cols) / 128));
 
 for a=0:0.5:1  
     K=zeros(1,p*p);
@@ -30,7 +34,7 @@ for a=0:0.5:1
    
        
     K=reshape(K,p,p);
-    K=flipud(K);       %%%%%%%%%%%%%%%%%%%%µÃµ½Ö±½Ç×ø±êÏµÏÂµÄ¾ØÕó
+    K=flipud(K);       %%%%%%%%%%%%%%%%%%%%ï¿½Ãµï¿½Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ÂµÄ¾ï¿½ï¿½ï¿½
  
   T=taylorwin(p,3,-35);
 
@@ -45,30 +49,29 @@ for a=0:0.5:1
           K(j,:)=K(j,:).*T';
        end
 
- %%%%%%%%%%¼ÓººÄş´°
+ %%%%%%%%%%ï¿½Óºï¿½ï¿½ï¿½ï¿½ï¿½
  
 
-   Z=zeros(q,q);
-   Z(1:p,1:p)=K;
-
+  % å°ºå¯¸è‡ªé€‚åº”ï¼šä½¿ Z ä¸ image_interest åŒå°ºå¯¸
   global complex_temp;
-  global image_interest;
+  Z=zeros(q_rows,q_cols);
+  Z(1:p,1:p)=K;
 
    Z=ifft2(Z);
    Z=ifftshift(Z);
    Z=Z.*image_interest;
    Z=real(Z);
-   complex_temp_copy=real(complex_temp);
+  complex_temp_copy=real(complex_temp);
    
-   Z1=Z-complex_temp_copy;
+  Z1=Z-complex_temp_copy;
    Z2=abs(Z1.*(Z1));
  
 %    z((a+1)/0.5+1)=sum(Z2(:));
-   z(a*2+1)=sum(Z2(:));        %%%%%%%%  aÖ»È¡3¸öÖµ
+   z(a*2+1)=sum(Z2(:));        %%%%%%%%  aÖ»È¡3ï¿½ï¿½Öµ
    
 end
 
-% a=find(z==min(z))*0.5-1.5;      %%%%%%%%  aÈ¡5¸öÖµ
-  a=(find(z==min(z))-1)/2;      %%%%%%%%  aÖ»È¡3¸öÖµ
+% a=find(z==min(z))*0.5-1.5;      %%%%%%%%  aÈ¡5ï¿½ï¿½Öµ
+  a=(find(z==min(z))-1)/2;      %%%%%%%%  aÖ»È¡3ï¿½ï¿½Öµ
    
    

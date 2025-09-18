@@ -17,14 +17,9 @@ function A=findlocalA(image,x,y,a,r,o_o,L);
  fy1=-fc*sin(om/2);
  fy2=fc*sin(om/2);      %%%%%%%%%%%%%%ֱ������ϵ�������ȡֵ��Χ
  
- % 自适应：在构建 K 前按当前 ROI 尺寸按比例设定 p
-   global image_interest;
-   global complex_temp;
-   [q_rows, q_cols] = size(image_interest);
-   p = max(4, round(84 * min(q_rows, q_cols) / 128));
 
  
-   K=zeros(1,p*p);
+    K=zeros(1,p*p);
     i=1;
     s=0;
     for fx=fx1:B/(p-1):fx2
@@ -54,6 +49,10 @@ function A=findlocalA(image,x,y,a,r,o_o,L);
  
  
    % 尺寸自适应：使 Z 与 image_interest 同尺寸
+   global image_interest;
+   global complex_temp;
+   [q_rows, q_cols] = size(image_interest);
+   p = min(p, min(q_rows, q_cols));
    Z=zeros(q_rows,q_cols);
 %    Z(1+(q-p)/2:p+(q-p)/2,1+(q-p)/2:p+(q-p)/2)=K;
    Z(1:p,1:p)=K;

@@ -25,11 +25,8 @@ a=0.5;
     fy1=-fc*sin(om/2);
     fy2=fc*sin(om/2);      %%%%%%%%%%%%%%ֱ������ϵ�������ȡֵ��Χ
  
-    % 自适应：按当前图尺寸比例设定 p，Z 与图尺寸一致
-    global complex_temp;
-    [q_rows, q_cols] = size(complex_temp);
-    q = q_rows;
-    p = max(4, round(84 * min(q_rows, q_cols) / 128));
+    p=84;
+    q=128;
 
 
  
@@ -58,10 +55,11 @@ a=0.5;
  %%%%%%%%%%�Ӻ�����
  
 
-   Z=zeros(q_rows,q_cols);
+   Z=zeros(q,q);
 %    Z(1+(q-p)/2:p+(q-p)/2,1+(q-p)/2:p+(q-p)/2)=K;
    Z(1:p,1:p)=K;
 
+   global complex_temp;
    global image_interest;
 
    Z=ifft2(Z);

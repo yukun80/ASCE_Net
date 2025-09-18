@@ -13,8 +13,8 @@ om=2.86;
  if nargin < 3 || isempty(q_cols)
      q_cols = q_rows;
  end
- % 频域网格维持与 128 的比例：p = round(84 * min(q_rows,q_cols) / 128)
- p = round(84 * min(q_rows, q_cols) / 128);
+ % 频域网格不超过输出尺寸的最小边
+ p = min(p, min(q_rows, q_cols));
 
 
 scat=size(T);

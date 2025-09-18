@@ -10,7 +10,6 @@ function [Z,s]=spotlight(fc,B,om,x,y,a,r,o_o,L,A, p_in, q_rows, q_cols) %%%%%%%%
  
  % 使用外部传入的频域网格与输出尺寸
  if nargin < 11 || isempty(p_in)
-     % 若未传入 p，则使用 84 基线，后续由调用侧按比例传入
      p_in = 84;
  end
  if nargin < 12 || isempty(q_rows)

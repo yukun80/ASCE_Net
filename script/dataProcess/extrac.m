@@ -19,8 +19,8 @@ K_complex=image_complex;
 [q_rows, q_cols] = size(K);
 q = q_rows; % 频域参考（行数），若为非正方图也可使用列数或二者平均
 qref = min(q_rows, q_cols);
-% 维持与 128 一致的相对比例：p_new = round(84 * qref / 128)
-p = round(84 * qref / 128);
+% 确保频率网格尺寸不超过图像最小边
+p = min(p, qref);
 max_cell = max(max(image));
 thresh=max_cell/10;                       %%%%%%%thresh???????db??????????????????????????????????
 sim=zeros(size(K));
@@ -47,9 +47,7 @@ changeR=1;                              %%%%%%%%%%????????????????????ж???????1
 
 chazhi=max(max(K-sim));
 
-% 自适应检测窗口：winsize = round(30 * qref / 128)
-winsize = max(3, round(30 * qref / 128));
-K = TargetDetect( K, winsize );
+K = TargetDetect( K,30 );
 
 
 while chazhi>thresh

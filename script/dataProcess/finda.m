@@ -17,11 +17,6 @@ function a=finda(image,A,x,y,r,o_o,L);
  fy2=fc*sin(om/2);      %%%%%%%%%%%%%%ֱ������ϵ�������ȡֵ��Χ
  
 
-% 在构建 K 之前确定 p（按当前 ROI 尺寸比例缩放）
-global image_interest;
-[q_rows, q_cols] = size(image_interest);
-p = max(4, round(84 * min(q_rows, q_cols) / 128));
-
 for a=0:0.5:1  
     K=zeros(1,p*p);
     i=1;
@@ -54,6 +49,9 @@ for a=0:0.5:1
 
   % 尺寸自适应：使 Z 与 image_interest 同尺寸
   global complex_temp;
+  global image_interest;
+  [q_rows, q_cols] = size(image_interest);
+  p = min(p, min(q_rows, q_cols));
   Z=zeros(q_rows,q_cols);
   Z(1:p,1:p)=K;
 

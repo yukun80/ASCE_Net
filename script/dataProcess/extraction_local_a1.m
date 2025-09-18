@@ -24,11 +24,12 @@ global A;
     fy1=-fc*sin(om/2);
     fy2=fc*sin(om/2);      %%%%%%%%%%%%%%ֱ������ϵ�������ȡֵ��Χ
  
-    % 在构建 K 之前确定 p（按当前 ROI 尺寸比例缩放）
+    p=84;
+    % 从全局复数图尺寸推断输出尺寸
     global complex_temp;
     [q_rows, q_cols] = size(complex_temp);
-    p = max(4, round(84 * min(q_rows, q_cols) / 128));
     q = q_rows;
+    p = min(p, min(q_rows, q_cols));
 
 
  
